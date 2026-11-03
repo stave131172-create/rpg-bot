@@ -1,0 +1,18 @@
+{
+  "970509149450416168": {
+    "name": "player_libur.",
+    "level": 1,
+    "exp": 0,
+    "maxExp": 100,
+    "stamina": 100,
+    "maxStamina": 100,
+    "race": "Dragon",
+    "stats": {
+      "hp": 160,
+      "atk": 20,
+      "def": 18,
+      "spd": 19
+    },
+    "currentHp": 157
+  }
+}
