@@ -728,13 +728,11 @@ client.on('interactionCreate', async interaction => {
 
         const rowSkills = new ActionRowBuilder().addComponents(skillComponents);
         const rowActions = new ActionRowBuilder().addComponents(
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('dg_bag').setLabel('🎒 Balo').setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId('dg_flee').setLabel('🏃 Rút lui').setStyle(ButtonStyle.Danger)
-            )
+            new ButtonBuilder().setCustomId('dg_bag').setLabel('🎒 Balo').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('dg_flee').setLabel('🏃 Rút lui').setStyle(ButtonStyle.Danger)
         );
 
-        await interaction.editReply({ embeds: [updateDungeonEmbed], files: [attachmentAnim], components: [skillComponents, rowActions.components] });
+        await interaction.editReply({ embeds: [updateDungeonEmbed], files: [attachmentAnim], components: [rowSkills, rowActions] });
 
         if (dungeon.isHellBurnAnim) {
             setTimeout(async () => {
@@ -743,7 +741,7 @@ client.on('interactionCreate', async interaction => {
                     const normalBuffer = await generateDungeonImage(player, dungeon);
                     const normalAttachment = new AttachmentBuilder(normalBuffer, { name: 'dungeon.png' });
                     updateDungeonEmbed.setImage('attachment://dungeon.png');
-                    await interaction.editReply({ embeds: [updateDungeonEmbed], files: [normalAttachment], components: [skillComponents, rowActions.components] });
+                    await interaction.editReply({ embeds: [updateDungeonEmbed], files: [normalAttachment], components: [rowSkills, rowActions] });
                 } catch (e) {}
             }, 5000);
         }
