@@ -262,8 +262,9 @@ async function generateDungeonImage(player, dungeon) {
         } catch (e) {}
     }
 
-    drawOutlinedText(ctx, `${DUNGEON_WAVE_1.name} Lv.`, eHudX + 115, eHudY + 30, "bold 18px sans-serif", "#ffffff");
-    drawOutlinedText(ctx, `${DUNGEON_WAVE_1.level}`, eHudX + 225, eHudY + 30, "bold 18px sans-serif", "#f1c40f");
+    drawOutlinedText(ctx, `${DUNGEON_WAVE_1.name}`, eHudX + 80, eHudY + 30, "bold 16px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `Lv.`, eHudX + 225, eHudY + 30, "bold 16px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `${DUNGEON_WAVE_1.level}`, eHudX + 252, eHudY + 30, "bold 16px sans-serif", "#f1c40f");
     drawOutlinedText(ctx, `${dungeon.enemyHp}/${DUNGEON_WAVE_1.maxHp}`, eHudX + 300, eHudY + 48, "bold 12px sans-serif", "#ffffff");
 
     if (dungeon.burnTurns > 0 && fs.existsSync(BURN_ICON_PATH)) {
@@ -302,15 +303,22 @@ async function generateDungeonImage(player, dungeon) {
     const mpBarStartY = pHudY + 100;
     const mpBarMaxW = 150;
     const mpBarH = 16;
+    const maxMp = player?.maxMp || 60;
+    const currentMp = dungeon.playerMp !== undefined ? dungeon.playerMp : maxMp;
+    const mpRatio = Math.max(0, currentMp / maxMp);
 
-    ctx.fillStyle = "#0055ff";
-    ctx.fillRect(mpBarStartX, mpBarStartY, mpBarMaxW, mpBarH);
+    if (mpRatio > 0) {
+        ctx.fillStyle = "#0055ff";
+        ctx.fillRect(mpBarStartX, mpBarStartY, mpBarMaxW * mpRatio, mpBarH);
+    }
 
     const xpBarStartX = pHudX + 318;
     const xpBarStartY = pHudY + 115;
     const xpBarMaxW = 82;
     const xpBarH = 16;
-    const xpRatio = Math.min(1, (player?.exp || 0) / (player?.maxExp || 100));
+    const currentExp = player?.exp || 0;
+    const maxExp = player?.maxExp || 100;
+    const xpRatio = Math.min(1, currentExp / maxExp);
 
     if (xpRatio > 0) {
         ctx.fillStyle = "#00bcd4";
@@ -324,10 +332,11 @@ async function generateDungeonImage(player, dungeon) {
         } catch (e) {}
     }
 
-    drawOutlinedText(ctx, `${player?.name || 'Player'} Lv.`, pHudX + 115, pHudY + 45, "bold 16px sans-serif", "#ffffff");
-    drawOutlinedText(ctx, `${player?.level || 1}`, pHudX + 225, pHudY + 45, "bold 16px sans-serif", "#f1c40f");
+    drawOutlinedText(ctx, `${player?.name || 'Player'}`, pHudX + 80, pHudY + 45, "bold 15px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `Lv.`, pHudX + 205, pHudY + 45, "bold 15px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `${player?.level || 1}`, pHudX + 233, pHudY + 45, "bold 15px sans-serif", "#f1c40f");
     drawOutlinedText(ctx, `${dungeon.playerHp} / ${dungeon.maxPlayerHp}`, pHudX + 280, pHudY + 75, "bold 13px sans-serif", "#ffffff");
-    drawOutlinedText(ctx, `60 / 60`, pHudX + 150, pHudY + 110, "bold 12px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `${currentMp} / ${maxMp}`, pHudX + 130, pHudY + 110, "bold 12px sans-serif", "#ffffff");
 
     return canvas.toBuffer('image/png');
 }
@@ -372,6 +381,8 @@ client.on('messageCreate', async message => {
             maxExp: 100,
             stamina: 100,
             maxStamina: 100,
+            mp: 60,
+            maxMp: 60,
             race: selectedRace.name,
             stats: { hp: selectedRace.hp, atk: selectedRace.atk, def: selectedRace.def, spd: selectedRace.spd }
         };
@@ -492,6 +503,8 @@ client.on('interactionCreate', async interaction => {
             maxExp: 100,
             stamina: 100,
             maxStamina: 100,
+            mp: 60,
+            maxMp: 60,
             race: null,
             stats: null
         };
@@ -562,6 +575,8 @@ client.on('interactionCreate', async interaction => {
             wave: 1,
             playerHp: player.stats.hp,
             maxPlayerHp: player.stats.hp,
+            playerMp: player.mp !== undefined ? player.mp : 60,
+            maxPlayerMp: player.maxMp || 60,
             enemyHp: DUNGEON_WAVE_1.hp,
             roarBuff: false,
             isCrit: false,
@@ -583,12 +598,12 @@ client.on('interactionCreate', async interaction => {
 
         const skillComponents = [
             new ButtonBuilder().setCustomId('dg_punch').setLabel('👊 Punch (Đấm)').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('dg_roar').setLabel('🦁 Roar (Gầm - Buff ATK)').setStyle(ButtonStyle.Primary)
+            new ButtonBuilder().setCustomId('dg_roar').setLabel('🦁 Roar (Gầm - 15MP)').setStyle(ButtonStyle.Primary)
         ];
 
         if (player.race === 'Dragon') {
             skillComponents.push(
-                new ButtonBuilder().setCustomId('dg_hell_burn').setLabel('🔥 Hell Burn (Rồng)').setStyle(ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId('dg_hell_burn').setLabel('🔥 Hell Burn (25MP)').setStyle(ButtonStyle.Danger)
             );
         }
 
@@ -637,14 +652,24 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'dg_roar') {
-            dungeon.roarBuff = true;
-            combatLog += `🦁 **${player.name}** dùng **Roar**! Tăng **+20% sát thương** lượt sau!\n`;
+            if (dungeon.playerMp < 15) {
+                combatLog += `⚠️ Không đủ MP để dùng **Roar** (Cần 15 MP)!\n`;
+            } else {
+                dungeon.playerMp -= 15;
+                dungeon.roarBuff = true;
+                combatLog += `🦁 **${player.name}** dùng **Roar** (-15 MP)! Tăng **+20% sát thương** lượt sau!\n`;
+            }
         } else if (interaction.customId === 'dg_hell_burn') {
-            dungeon.isHellBurnAnim = true;
-            dungeon.burnTurns = 2;
-            let burnSkillDamage = Math.round(player.stats.atk * 1.8);
-            dungeon.enemyHp -= burnSkillDamage;
-            combatLog += `🌋 **${player.name}** phóng thích **Hell Burn** trùm kín Slime, gây **${burnSkillDamage}** sát thương!\n`;
+            if (dungeon.playerMp < 25) {
+                combatLog += `⚠️ Không đủ MP để dùng **Hell Burn** (Cần 25 MP)!\n`;
+            } else {
+                dungeon.playerMp -= 25;
+                dungeon.isHellBurnAnim = true;
+                dungeon.burnTurns = 2;
+                let burnSkillDamage = Math.round(player.stats.atk * 1.8);
+                dungeon.enemyHp -= burnSkillDamage;
+                combatLog += `🌋 **${player.name}** phóng thích **Hell Burn** (-25 MP) trùm kín Slime, gây **${burnSkillDamage}** sát thương!\n`;
+            }
         } else if (interaction.customId === 'dg_punch') {
             let baseDamage = player.stats.atk;
 
@@ -676,12 +701,30 @@ client.on('interactionCreate', async interaction => {
 
         if (dungeon.enemyHp <= 0) {
             activeDungeons.delete(userId);
+            
+            // Nhận ngẫu nhiên EXP từ 60 đến 89
+            const gainedExp = Math.floor(Math.random() * (89 - 60 + 1)) + 60;
+            player.exp = (player.exp || 0) + gainedExp;
+            
+            let levelUpText = `Nhận được **+${gainedExp} EXP**!`;
+            
+            // Hệ thống tăng cấp theo hàm mũ số (maxExp tăng dần mỗi cấp)
+            while (player.exp >= player.maxExp) {
+                player.exp -= player.maxExp;
+                player.level += 1;
+                player.maxExp = Math.round(100 * Math.pow(1.5, player.level - 1));
+                levelUpText += `\n⭐ **CHÚC MỪNG!** Bạn đã thăng lên **Level ${player.level}**!`;
+            }
+
+            player.mp = dungeon.playerMp; // Lưu lại lượng MP sau trận
+            await savePlayerData(userId, player);
+
             const imageBuffer = await generateDungeonImage(player, dungeon);
             const attachment = new AttachmentBuilder(imageBuffer, { name: 'dungeon.png' });
 
             const winEmbed = new EmbedBuilder()
                 .setTitle("🏆 HOÀN THÀNH ẢI 1!")
-                .setDescription(`Bạn đã tiêu diệt **${DUNGEON_WAVE_1.name}** thành công!\n*(Dữ liệu đã tự động lưu trữ an toàn trên MongoDB!)*`)
+                .setDescription(`Bạn đã tiêu diệt **${DUNGEON_WAVE_1.name}** thành công!\n${levelUpText}`)
                 .setColor(0x2ECC71)
                 .setImage('attachment://dungeon.png');
 
@@ -718,11 +761,11 @@ client.on('interactionCreate', async interaction => {
 
         const skillComponents = [
             new ButtonBuilder().setCustomId('dg_punch').setLabel('👊 Punch (Đấm)').setStyle(ButtonStyle.Primary),
-            new ButtonBuilder().setCustomId('dg_roar').setLabel('🦁 Roar (Gầm - Buff ATK)').setStyle(ButtonStyle.Primary)
+            new ButtonBuilder().setCustomId('dg_roar').setLabel('🦁 Roar (Gầm - 15MP)').setStyle(ButtonStyle.Primary)
         ];
         if (player.race === 'Dragon') {
             skillComponents.push(
-                new ButtonBuilder().setCustomId('dg_hell_burn').setLabel('🔥 Hell Burn (Rồng)').setStyle(ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId('dg_hell_burn').setLabel('🔥 Hell Burn (25MP)').setStyle(ButtonStyle.Danger)
             );
         }
 
