@@ -262,7 +262,6 @@ async function generateDungeonImage(player, dungeon) {
         } catch (e) {}
     }
 
-    // T1: Đổi màu Level thành màu vàng (#f1c40f) trên HUD quái
     drawOutlinedText(ctx, `${DUNGEON_WAVE_1.name} Lv.`, eHudX + 115, eHudY + 30, "bold 18px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `${DUNGEON_WAVE_1.level}`, eHudX + 225, eHudY + 30, "bold 18px sans-serif", "#f1c40f");
     drawOutlinedText(ctx, `${dungeon.enemyHp}/${DUNGEON_WAVE_1.maxHp}`, eHudX + 300, eHudY + 48, "bold 12px sans-serif", "#ffffff");
@@ -311,7 +310,7 @@ async function generateDungeonImage(player, dungeon) {
     const xpBarStartY = pHudY + 115;
     const xpBarMaxW = 82;
     const xpBarH = 16;
-    const xpRatio = Math.min(1, player.exp / player.maxExp);
+    const xpRatio = Math.min(1, (player?.exp || 0) / (player?.maxExp || 100));
 
     if (xpRatio > 0) {
         ctx.fillStyle = "#00bcd4";
@@ -325,9 +324,8 @@ async function generateDungeonImage(player, dungeon) {
         } catch (e) {}
     }
 
-    // T1: Đổi màu Level thành màu vàng (#f1c40f) trên HUD nhân vật
-    drawOutlinedText(ctx, `${player.name} Lv.`, pHudX + 115, pHudY + 45, "bold 16px sans-serif", "#ffffff");
-    drawOutlinedText(ctx, `${player.level}`, pHudX + 225, pHudY + 45, "bold 16px sans-serif", "#f1c40f");
+    drawOutlinedText(ctx, `${player?.name || 'Player'} Lv.`, pHudX + 115, pHudY + 45, "bold 16px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `${player?.level || 1}`, pHudX + 225, pHudY + 45, "bold 16px sans-serif", "#f1c40f");
     drawOutlinedText(ctx, `${dungeon.playerHp} / ${dungeon.maxPlayerHp}`, pHudX + 280, pHudY + 75, "bold 13px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `60 / 60`, pHudX + 150, pHudY + 110, "bold 12px sans-serif", "#ffffff");
 
@@ -525,6 +523,7 @@ client.on('interactionCreate', async interaction => {
         if (userId !== targetUserId) return interaction.reply({ content: "⚠️ Không phải thẻ của bạn!", ephemeral: true });
         
         let player = await getPlayerData(userId);
+        if (!player) return interaction.reply({ content: "⚠️ Không tìm thấy dữ liệu nhân vật!", ephemeral: true });
         if (player.race) return interaction.reply({ content: "⚠️ Bạn đã thức tỉnh rồi!", ephemeral: true });
 
         const selectedRace = rollRace();
@@ -610,6 +609,9 @@ client.on('interactionCreate', async interaction => {
 
         await interaction.deferUpdate();
         const player = await getPlayerData(userId);
+        if (!player) {
+            return interaction.followUp({ content: "⚠️ Không tìm thấy dữ liệu người chơi!", ephemeral: true });
+        }
 
         if (interaction.customId === 'dg_flee') {
             activeDungeons.delete(userId);
@@ -726,11 +728,13 @@ client.on('interactionCreate', async interaction => {
 
         const rowSkills = new ActionRowBuilder().addComponents(skillComponents);
         const rowActions = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('dg_bag').setLabel('🎒 Balo').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('dg_flee').setLabel('🏃 Rút lui').setStyle(ButtonStyle.Danger)
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId('dg_bag').setLabel('🎒 Balo').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId('dg_flee').setLabel('🏃 Rút lui').setStyle(ButtonStyle.Danger)
+            )
         );
 
-        await interaction.editReply({ embeds: [updateDungeonEmbed], files: [attachmentAnim], components: [rowSkills, rowActions] });
+        await interaction.editReply({ embeds: [updateDungeonEmbed], files: [attachmentAnim], components: [skillComponents, rowActions.components] });
 
         if (dungeon.isHellBurnAnim) {
             setTimeout(async () => {
@@ -739,7 +743,7 @@ client.on('interactionCreate', async interaction => {
                     const normalBuffer = await generateDungeonImage(player, dungeon);
                     const normalAttachment = new AttachmentBuilder(normalBuffer, { name: 'dungeon.png' });
                     updateDungeonEmbed.setImage('attachment://dungeon.png');
-                    await interaction.editReply({ embeds: [updateDungeonEmbed], files: [normalAttachment], components: [rowSkills, rowActions] });
+                    await interaction.editReply({ embeds: [updateDungeonEmbed], files: [normalAttachment], components: [skillComponents, rowActions.components] });
                 } catch (e) {}
             }, 5000);
         }
