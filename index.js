@@ -200,7 +200,7 @@ async function generateDungeonImage(player, dungeon) {
         } catch (e) {}
     }
 
-    const playerX = 150;
+    const playerX = 90;
     const playerY = 100;
     const playerSize = 340;
     if (fs.existsSync(PLAYER_IMAGE_PATH)) {
