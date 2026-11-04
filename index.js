@@ -312,8 +312,8 @@ async function generateDungeonImage(player, dungeon) {
         ctx.fillRect(mpBarStartX, mpBarStartY, mpBarMaxW * mpRatio, mpBarH);
     }
 
-    const xpBarStartX = pHudX + 318;
-    const xpBarStartY = pHudY + 115;
+    const xpBarStartX = pHudX + 300;
+    const xpBarStartY = pHudY + 100;
     const xpBarMaxW = 82;
     const xpBarH = 16;
     const currentExp = player?.exp || 0;
