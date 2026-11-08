@@ -62,8 +62,8 @@ async function resetAllData() {
 
 const activeDungeons = new Map();
 
-// ================= DANH SÁCH QUÁI THEO KHU VỰC (MOB POOL) =================
-const FOREST_MOBS = [
+// ================= DANH SÁCH QUÁI & TRANG BỊ RƠI (LOOT TABLE) =================
+const FOREST_LOBS = [
     {
         name: "Slime Tai Thỏ",
         hp: 80,
@@ -85,6 +85,27 @@ const FOREST_MOBS = [
         image: path.join(__dirname, 'assets', 'goblin_mob.png')
     }
 ];
+
+// Danh sách trang bị có thể rớt khi đánh quái khu rừng
+const FOREST_EQUIPMENT_DROPS = [
+    { name: "Kiếm gỉ sét", type: "weapon", atk: 5, def: 0, durability: 10, maxDurability: 10, rarity: "Common", dropRate: 5 },
+    { name: "Giáp mỏng", type: "armor", atk: 0, def: 20, durability: 10, maxDurability: 10, rarity: "Common", dropRate: 5 },
+    { name: "Đao Sắt", type: "weapon", atk: 10, def: 0, durability: 45, maxDurability: 45, rarity: "Uncommon", dropRate: 5 },
+    { name: "Kiếm ngắn", type: "weapon", atk: 12, def: 0, durability: 30, maxDurability: 30, rarity: "Uncommon", dropRate: 10 },
+    { name: "Khiên gỗ", type: "armor", atk: 0, def: 15, durability: 50, maxDurability: 50, rarity: "Uncommon", dropRate: 5 }
+];
+
+function rollEquipmentDrops() {
+    let droppedItems = [];
+    for (const item of FOREST_EQUIPMENT_DROPS) {
+        const roll = Math.random() * 100;
+        if (roll <= item.dropRate) {
+            // Clone item để cấp độ bền độc lập
+            droppedItems.push({ ...item });
+        }
+    }
+    return droppedItems;
+}
 
 function spawnRandomMob() {
     const roll = Math.random() * 100;
@@ -414,7 +435,8 @@ client.on('messageCreate', async message => {
             mp: 60,
             maxMp: 60,
             race: selectedRace.name,
-            stats: { hp: selectedRace.hp, atk: selectedRace.atk, def: selectedRace.def, spd: selectedRace.spd }
+            stats: { hp: selectedRace.hp, atk: selectedRace.atk, def: selectedRace.def, spd: selectedRace.spd },
+            inventory: [] // Lưu trữ trang bị thu thập được
         };
         await savePlayerData(userId, newPlayer);
 
@@ -536,7 +558,8 @@ client.on('interactionCreate', async interaction => {
             mp: 60,
             maxMp: 60,
             race: null,
-            stats: null
+            stats: null,
+            inventory: []
         };
         await savePlayerData(userId, newPlayer);
 
@@ -603,13 +626,18 @@ client.on('interactionCreate', async interaction => {
 
         const spawnedMob = spawnRandomMob();
 
+        // 🌟 Bắt đầu trận đấu mới: Reset/Hồi phục MP về maxMp đầy đủ
+        const maxMpValue = player.maxMp || 60;
+        player.mp = maxMpValue;
+        await savePlayerData(userId, player);
+
         activeDungeons.set(userId, {
             wave: 1,
             mob: spawnedMob,
             playerHp: player.stats.hp,
             maxPlayerHp: player.stats.hp,
-            playerMp: player.mp !== undefined ? player.mp : 60,
-            maxPlayerMp: player.maxMp || 60,
+            playerMp: maxMpValue,
+            maxPlayerMp: maxMpValue,
             enemyHp: spawnedMob.hp,
             roarBuff: false,
             isCrit: false,
@@ -625,7 +653,7 @@ client.on('interactionCreate', async interaction => {
 
         const dungeonEmbed = new EmbedBuilder()
             .setTitle(`🌲 DUNGEON: KHU RỪNG SƯƠNG MÙ`)
-            .setDescription(`**${player.name}** chạm trán **${spawnedMob.name}** xuất hiện ngẫu nhiên!\nChọn chiêu thức bên dưới!`)
+            .setDescription(`**${player.name}** chạm trán **${spawnedMob.name}** xuất hiện ngẫu nhiên!\n⚡ MP đã được hồi phục đầy đủ! Chọn chiêu thức bên dưới!`)
             .setColor(0x2ECC71)
             .setImage('attachment://dungeon.png');
 
@@ -670,7 +698,12 @@ client.on('interactionCreate', async interaction => {
         }
 
         if (interaction.customId === 'dg_bag') {
-            return interaction.followUp({ content: "🎒 Hành trang đang cập nhật!", ephemeral: true });
+            const inventory = player.inventory || [];
+            if (inventory.length === 0) {
+                return interaction.followUp({ content: "🎒 Hành trang của bạn đang trống không có trang bị nào!", ephemeral: true });
+            }
+            let invList = inventory.map((item, index) => `**${index + 1}. ${item.name}** [${item.rarity}] - ATK: +${item.atk}, DEF: +${item.def} | Độ bền: ${item.durability}/${item.maxDurability}`).join('\n');
+            return interaction.followUp({ content: `🎒 **HÀNH TRANG TRANG BỊ:**\n${invList}`, ephemeral: true });
         }
 
         let combatLog = "";
@@ -678,6 +711,13 @@ client.on('interactionCreate', async interaction => {
         dungeon.isMiss = false;
         dungeon.isBlock = false;
         dungeon.isHellBurnAnim = false;
+
+        // 🌟 T1: Hồi 10 MP mỗi turn
+        const maxMpLimit = player.maxMp || 60;
+        if (dungeon.playerMp < maxMpLimit) {
+            dungeon.playerMp = Math.min(maxMpLimit, dungeon.playerMp + 10);
+            combatLog += `✨ Hô hấp điều hòa, **${player.name}** hồi phục **+10 MP** (Hiện tại: ${dungeon.playerMp}/${maxMpLimit})\n`;
+        }
 
         if (dungeon.burnTurns > 0) {
             const burnDamage = 8;
@@ -734,13 +774,26 @@ client.on('interactionCreate', async interaction => {
 
         if (dungeon.enemyHp < 0) dungeon.enemyHp = 0;
 
+        // Xử lý khi tiêu diệt quái thành công
         if (dungeon.enemyHp <= 0) {
             activeDungeons.delete(userId);
             
             const gainedExp = Math.floor(Math.random() * (89 - 60 + 1)) + 60;
             player.exp = (player.exp || 0) + gainedExp;
             
-            let levelUpText = `Nhận được **+${gainedExp} EXP**!`;
+            // 🌟 Roll trang bị rơi ra từ quái rừng
+            const droppedItems = rollEquipmentDrops();
+            if (!player.inventory) player.inventory = [];
+            
+            let dropText = "";
+            if (droppedItems.length > 0) {
+                for (const item of droppedItems) {
+                    player.inventory.push(item);
+                    dropText += `\n✨ **Nhận vật phẩm rơi:** \`${item.name}\` (${item.rarity}) [ATK: +${item.atk}, DEF: +${item.def}]!`;
+                }
+            }
+
+            let levelUpText = `Nhận được **+${gainedExp} EXP**!${dropText}`;
             
             while (player.exp >= player.maxExp) {
                 player.exp -= player.maxExp;
