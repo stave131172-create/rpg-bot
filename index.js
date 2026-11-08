@@ -63,7 +63,7 @@ async function resetAllData() {
 const activeDungeons = new Map();
 
 // ================= DANH SÁCH QUÁI & TRANG BỊ RƠI (LOOT TABLE) =================
-const FOREST_LOBS = [
+const FOREST_MOBS = [
     {
         name: "Slime Tai Thỏ",
         hp: 80,
@@ -100,7 +100,6 @@ function rollEquipmentDrops() {
     for (const item of FOREST_EQUIPMENT_DROPS) {
         const roll = Math.random() * 100;
         if (roll <= item.dropRate) {
-            // Clone item để cấp độ bền độc lập
             droppedItems.push({ ...item });
         }
     }
@@ -436,7 +435,7 @@ client.on('messageCreate', async message => {
             maxMp: 60,
             race: selectedRace.name,
             stats: { hp: selectedRace.hp, atk: selectedRace.atk, def: selectedRace.def, spd: selectedRace.spd },
-            inventory: [] // Lưu trữ trang bị thu thập được
+            inventory: []
         };
         await savePlayerData(userId, newPlayer);
 
