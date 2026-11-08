@@ -62,15 +62,39 @@ async function resetAllData() {
 
 const activeDungeons = new Map();
 
-const DUNGEON_WAVE_1 = {
-    name: "Slime Tai Thỏ",
-    hp: 80,
-    maxHp: 80,
-    level: 3,
-    atk: 12,
-    def: 4,
-    image: path.join(__dirname, 'assets', 'slime_mob.png')
-};
+// ================= DANH SÁCH QUÁI THEO KHU VỰC (MOB POOL) =================
+const FOREST_MOBS = [
+    {
+        name: "Slime Tai Thỏ",
+        hp: 80,
+        maxHp: 80,
+        level: 3,
+        atk: 12,
+        def: 4,
+        rate: 60, // 60% xuất hiện
+        image: path.join(__dirname, 'assets', 'slime_mob.png')
+    },
+    {
+        name: "Goblin Trinh Sát",
+        hp: 95,
+        maxHp: 95,
+        level: 4,
+        atk: 15,
+        def: 5,
+        rate: 40, // 40% xuất hiện
+        image: path.join(__dirname, 'assets', 'goblin_mob.png')
+    }
+];
+
+function spawnRandomMob() {
+    const roll = Math.random() * 100;
+    let accumulated = 0;
+    for (const mob of FOREST_MOBS) {
+        accumulated += mob.rate;
+        if (roll <= accumulated) return mob;
+    }
+    return FOREST_MOBS[0];
+}
 
 function getMapPath() {
     const pngPath = path.join(__dirname, 'map.png');
@@ -193,9 +217,11 @@ async function generateDungeonImage(player, dungeon) {
     const enemyX = 540;
     const enemyY = 145;
     const enemySize = 100;
-    if (!dungeon.isHellBurnAnim && fs.existsSync(DUNGEON_WAVE_1.image)) {
+    const currentMob = dungeon.mob;
+
+    if (!dungeon.isHellBurnAnim && currentMob && fs.existsSync(currentMob.image)) {
         try {
-            const enemyImg = await loadImage(DUNGEON_WAVE_1.image);
+            const enemyImg = await loadImage(currentMob.image);
             ctx.drawImage(enemyImg, enemyX, enemyY, enemySize, enemySize);
         } catch (e) {}
     }
@@ -240,7 +266,7 @@ async function generateDungeonImage(player, dungeon) {
     const eHudW = 410;
     const eHudH = 90;
 
-    const eHpRatio = Math.max(0, dungeon.enemyHp / DUNGEON_WAVE_1.maxHp);
+    const eHpRatio = Math.max(0, dungeon.enemyHp / currentMob.maxHp);
     let eColor = '#2ecc71';
     if (eHpRatio <= 0.1) eColor = '#e74c3c';
     else if (eHpRatio <= 0.5) eColor = '#f39c12';
@@ -262,10 +288,10 @@ async function generateDungeonImage(player, dungeon) {
         } catch (e) {}
     }
 
-    drawOutlinedText(ctx, `${DUNGEON_WAVE_1.name}`, eHudX + 80, eHudY + 30, "bold 16px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `${currentMob.name}`, eHudX + 80, eHudY + 30, "bold 16px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `Lv.`, eHudX + 225, eHudY + 30, "bold 16px sans-serif", "#ffffff");
-    drawOutlinedText(ctx, `${DUNGEON_WAVE_1.level}`, eHudX + 252, eHudY + 30, "bold 16px sans-serif", "#f1c40f");
-    drawOutlinedText(ctx, `${dungeon.enemyHp}/${DUNGEON_WAVE_1.maxHp}`, eHudX + 300, eHudY + 48, "bold 12px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `${currentMob.level}`, eHudX + 252, eHudY + 30, "bold 16px sans-serif", "#f1c40f");
+    drawOutlinedText(ctx, `${dungeon.enemyHp}/${currentMob.maxHp}`, eHudX + 300, eHudY + 48, "bold 12px sans-serif", "#ffffff");
 
     if (dungeon.burnTurns > 0 && fs.existsSync(BURN_ICON_PATH)) {
         try {
@@ -462,7 +488,7 @@ client.on('messageCreate', async message => {
             new ButtonBuilder().setCustomId('btn_huongdan').setLabel('📖 Hướng Dẫn').setStyle(ButtonStyle.Primary)
         );
         const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('btn_dungeon').setLabel('⚔️ Khám Phá Dungeon (Ải 1)').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId('btn_dungeon').setLabel('⚔️ Khám Phá Dungeon (Khu Rừng)').setStyle(ButtonStyle.Success),
             new ButtonBuilder().setCustomId('btn_nhiemvu').setLabel('📜 Nhiệm Vụ').setStyle(ButtonStyle.Secondary).setDisabled(true)
         );
         const row3 = new ActionRowBuilder().addComponents(
@@ -571,13 +597,17 @@ client.on('interactionCreate', async interaction => {
 
         await interaction.deferUpdate();
 
+        // Bốc ngẫu nhiên một con quái trong khu rừng sương mù theo tỷ lệ spawn
+        const spawnedMob = spawnRandomMob();
+
         activeDungeons.set(userId, {
             wave: 1,
+            mob: spawnedMob,
             playerHp: player.stats.hp,
             maxPlayerHp: player.stats.hp,
             playerMp: player.mp !== undefined ? player.mp : 60,
             maxPlayerMp: player.maxMp || 60,
-            enemyHp: DUNGEON_WAVE_1.hp,
+            enemyHp: spawnedMob.hp,
             roarBuff: false,
             isCrit: false,
             isMiss: false,
@@ -591,8 +621,8 @@ client.on('interactionCreate', async interaction => {
         const attachment = new AttachmentBuilder(imageBuffer, { name: 'dungeon.png' });
 
         const dungeonEmbed = new EmbedBuilder()
-            .setTitle(`🌲 DUNGEON: KHU RỪNG SƯƠNG MÙ [ẢI 1]`)
-            .setDescription(`**${player.name}** chạm trán **${DUNGEON_WAVE_1.name}**!\nChọn chiêu thức bên dưới!`)
+            .setTitle(`🌲 DUNGEON: KHU RỪNG SƯƠNG MÙ`)
+            .setDescription(`**${player.name}** chạm trán **${spawnedMob.name}** xuất hiện ngẫu nhiên!\nChọn chiêu thức bên dưới!`)
             .setColor(0x2ECC71)
             .setImage('attachment://dungeon.png');
 
@@ -628,6 +658,8 @@ client.on('interactionCreate', async interaction => {
             return interaction.followUp({ content: "⚠️ Không tìm thấy dữ liệu người chơi!", ephemeral: true });
         }
 
+        const currentMob = dungeon.mob;
+
         if (interaction.customId === 'dg_flee') {
             activeDungeons.delete(userId);
             const fleeEmbed = new EmbedBuilder().setTitle("🏃 ĐÃ RÚT LUI").setDescription("Thoát khỏi Dungeon an toàn.").setColor(0x95A5A6);
@@ -648,7 +680,7 @@ client.on('interactionCreate', async interaction => {
             const burnDamage = 8;
             dungeon.enemyHp -= burnDamage;
             dungeon.burnTurns -= 1;
-            combatLog += `🔥 Slime bị thiêu đốt bởi **Hell Burn**, mất **${burnDamage}** HP! (Còn ${dungeon.burnTurns} lượt)\n`;
+            combatLog += `🔥 ${currentMob.name} bị thiêu đốt bởi **Hell Burn**, mất **${burnDamage}** HP! (Còn ${dungeon.burnTurns} lượt)\n`;
         }
 
         if (interaction.customId === 'dg_roar') {
@@ -668,7 +700,7 @@ client.on('interactionCreate', async interaction => {
                 dungeon.burnTurns = 2;
                 let burnSkillDamage = Math.round(player.stats.atk * 1.8);
                 dungeon.enemyHp -= burnSkillDamage;
-                combatLog += `🌋 **${player.name}** phóng thích **Hell Burn** (-25 MP) trùm kín Slime, gây **${burnSkillDamage}** sát thương!\n`;
+                combatLog += `🌋 **${player.name}** phóng thích **Hell Burn** (-25 MP) trùm kín ${currentMob.name}, gây **${burnSkillDamage}** sát thương!\n`;
             }
         } else if (interaction.customId === 'dg_punch') {
             let baseDamage = player.stats.atk;
@@ -685,7 +717,7 @@ client.on('interactionCreate', async interaction => {
             if (roll < MISS_CHANCE) {
                 dungeon.isMiss = true;
                 baseDamage = 0;
-                combatLog += `💨 **MISS!** Đòn đánh của **${player.name}** đã bị Slime né được!\n`;
+                combatLog += `💨 **MISS!** Đòn đánh của **${player.name}** đã bị ${currentMob.name} né được!\n`;
             } else if (roll < MISS_CHANCE + CRIT_CHANCE) {
                 dungeon.isCrit = true;
                 baseDamage = Math.round(baseDamage * 1.5);
@@ -702,13 +734,11 @@ client.on('interactionCreate', async interaction => {
         if (dungeon.enemyHp <= 0) {
             activeDungeons.delete(userId);
             
-            // Nhận ngẫu nhiên EXP từ 60 đến 89
             const gainedExp = Math.floor(Math.random() * (89 - 60 + 1)) + 60;
             player.exp = (player.exp || 0) + gainedExp;
             
             let levelUpText = `Nhận được **+${gainedExp} EXP**!`;
             
-            // Hệ thống tăng cấp theo hàm mũ số (maxExp tăng dần mỗi cấp)
             while (player.exp >= player.maxExp) {
                 player.exp -= player.maxExp;
                 player.level += 1;
@@ -716,25 +746,25 @@ client.on('interactionCreate', async interaction => {
                 levelUpText += `\n⭐ **CHÚC MỪNG!** Bạn đã thăng lên **Level ${player.level}**!`;
             }
 
-            player.mp = dungeon.playerMp; // Lưu lại lượng MP sau trận
+            player.mp = dungeon.playerMp;
             await savePlayerData(userId, player);
 
             const imageBuffer = await generateDungeonImage(player, dungeon);
             const attachment = new AttachmentBuilder(imageBuffer, { name: 'dungeon.png' });
 
             const winEmbed = new EmbedBuilder()
-                .setTitle("🏆 HOÀN THÀNH ẢI 1!")
-                .setDescription(`Bạn đã tiêu diệt **${DUNGEON_WAVE_1.name}** thành công!\n${levelUpText}`)
+                .setTitle("🏆 CHIẾN THẮNG TRẬN ĐẤU!")
+                .setDescription(`Bạn đã tiêu diệt **${currentMob.name}** thành công!\n${levelUpText}`)
                 .setColor(0x2ECC71)
                 .setImage('attachment://dungeon.png');
 
             return interaction.editReply({ embeds: [winEmbed], files: [attachment], components: [] });
         }
 
-        const monsterDmg = Math.max(1, DUNGEON_WAVE_1.atk - Math.floor(player.stats.def / 2));
+        const monsterDmg = Math.max(1, currentMob.atk - Math.floor(player.stats.def / 2));
         dungeon.playerHp -= monsterDmg;
         if (dungeon.playerHp < 0) dungeon.playerHp = 0;
-        combatLog += `🐾 **${DUNGEON_WAVE_1.name}** phản công đớp lại, gây **${monsterDmg}** sát thương lên bạn!\n`;
+        combatLog += `🐾 **${currentMob.name}** phản công đớp lại, gây **${monsterDmg}** sát thương lên bạn!\n`;
 
         if (dungeon.playerHp <= 0) {
             activeDungeons.delete(userId);
@@ -743,7 +773,7 @@ client.on('interactionCreate', async interaction => {
 
             const loseEmbed = new EmbedBuilder()
                 .setTitle("💀 BẠN ĐÃ GỤC NGÃ TRONG DUNGEON!")
-                .setDescription(`Bạn đã bị **${DUNGEON_WAVE_1.name}** đánh bại. Hãy luyện tập thêm rồi quay lại nhé!`)
+                .setDescription(`Bạn đã bị **${currentMob.name}** đánh bại. Hãy luyện tập thêm rồi quay lại nhé!`)
                 .setColor(0xE74C3C)
                 .setImage('attachment://dungeon.png');
 
@@ -754,8 +784,8 @@ client.on('interactionCreate', async interaction => {
         const attachmentAnim = new AttachmentBuilder(imageBufferAnim, { name: 'dungeon.png' });
 
         const updateDungeonEmbed = new EmbedBuilder()
-            .setTitle(`🌲 DUNGEON: KHU RỪNG SƯƠNG MÙ [ẢI 1]`)
-            .setDescription(`${combatLog}\n**${player.name}** [HP: ${dungeon.playerHp}/${dungeon.maxPlayerHp}] VS **${DUNGEON_WAVE_1.name}** [HP: ${dungeon.enemyHp}/${DUNGEON_WAVE_1.maxHp}]`)
+            .setTitle(`🌲 DUNGEON: KHU RỪNG SƯƠNG MÙ`)
+            .setDescription(`${combatLog}\n**${player.name}** [HP: ${dungeon.playerHp}/${dungeon.maxPlayerHp}] VS **${currentMob.name}** [HP: ${dungeon.enemyHp}/${currentMob.maxHp}]`)
             .setColor(0x2ECC71)
             .setImage('attachment://dungeon.png');
 
