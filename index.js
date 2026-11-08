@@ -218,7 +218,7 @@ async function generateDungeonImage(player, dungeon) {
     
     // Nếu là Goblin thì phóng to gấp đôi (200px) và căn chỉnh tọa độ cho đẹp
     const isGoblin = currentMob && currentMob.name.toLowerCase().includes("goblin");
-    const enemySize = isGoblin ? 200 : 100;
+    const enemySize = isGoblin ? 100 : 50;
     const enemyX = isGoblin ? 500 : 540;
     const enemyY = isGoblin ? 95 : 145;
 
