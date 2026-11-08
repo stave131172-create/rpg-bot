@@ -214,13 +214,10 @@ async function generateDungeonImage(player, dungeon) {
         ctx.fillRect(0, 0, width, height);
     }
 
+    const enemyX = 540;
+    const enemyY = 145;
+    const enemySize = 100; // Đưa size của tất cả quái (kể cả goblin) về 100 như bình thường
     const currentMob = dungeon.mob;
-    
-    // Nếu là Goblin thì phóng to gấp đôi (200px) và căn chỉnh tọa độ cho đẹp
-    const isGoblin = currentMob && currentMob.name.toLowerCase().includes("goblin");
-    const enemySize = isGoblin ? 100 : 50;
-    const enemyX = isGoblin ? 500 : 540;
-    const enemyY = isGoblin ? 95 : 145;
 
     if (!dungeon.isHellBurnAnim && currentMob && fs.existsSync(currentMob.image)) {
         try {
@@ -242,23 +239,23 @@ async function generateDungeonImage(player, dungeon) {
     if (dungeon.isHellBurnAnim && fs.existsSync(HELL_BURN_EFFECT_PATH)) {
         try {
             const burnAnimImg = await loadImage(HELL_BURN_EFFECT_PATH);
-            ctx.drawImage(burnAnimImg, enemyX + (isGoblin ? 0 : -95), enemyY + (isGoblin ? -40 : -140), 337.5, 337.5);
+            ctx.drawImage(burnAnimImg, enemyX - 95, enemyY - 140, 337.5, 337.5);
         } catch (e) {}
     } else {
         if (dungeon.isCrit && fs.existsSync(CRIT_EFFECT_PATH)) {
             try {
                 const critImg = await loadImage(CRIT_EFFECT_PATH);
-                ctx.drawImage(critImg, enemyX + (isGoblin ? 30 : -10), enemyY + (isGoblin ? 0 : -35), 90, 40);
+                ctx.drawImage(critImg, enemyX - 10, enemyY - 35, 90, 40);
             } catch (e) {}
         } else if (dungeon.isMiss && fs.existsSync(MISS_EFFECT_PATH)) {
             try {
                 const missImg = await loadImage(MISS_EFFECT_PATH);
-                ctx.drawImage(missImg, enemyX + (isGoblin ? 30 : -10), enemyY + (isGoblin ? 0 : -35), 90, 40);
+                ctx.drawImage(missImg, enemyX - 10, enemyY - 35, 90, 40);
             } catch (e) {}
         } else if (dungeon.isBlock && fs.existsSync(BLOCK_EFFECT_PATH)) {
             try {
                 const blockImg = await loadImage(BLOCK_EFFECT_PATH);
-                ctx.drawImage(blockImg, enemyX + (isGoblin ? 30 : -10), enemyY + (isGoblin ? 0 : -35), 90, 40);
+                ctx.drawImage(blockImg, enemyX - 10, enemyY - 35, 90, 40);
             } catch (e) {}
         }
     }
@@ -480,7 +477,7 @@ client.on('messageCreate', async message => {
             .setColor(0x5865F2)
             .addFields(
                 { name: "👤 Chủng Tộc", value: `\`${raceInfo}\``, inline: true },
-                { name: "⭐ Cấp Độ", value: `\`Level ${player.level}\``, inline: true },
+                { name: "⭐ C cấp Độ", value: `\`Level ${player.level}\``, inline: true },
                 { name: "📊 EXP", value: `\`${player.exp} / ${player.maxExp}\``, inline: true },
                 { name: "⚡ Thể Lực", value: `${staminaBar} \`[${player.stamina}/${player.maxStamina}]\``, inline: false }
             )
