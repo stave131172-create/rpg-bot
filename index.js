@@ -71,7 +71,7 @@ const FOREST_MOBS = [
         level: 3,
         atk: 12,
         def: 4,
-        rate: 60, // 60% xuất hiện
+        rate: 60,
         image: path.join(__dirname, 'assets', 'slime_mob.png')
     },
     {
@@ -81,7 +81,7 @@ const FOREST_MOBS = [
         level: 4,
         atk: 15,
         def: 5,
-        rate: 40, // 40% xuất hiện
+        rate: 40,
         image: path.join(__dirname, 'assets', 'goblin_mob.png')
     }
 ];
@@ -216,10 +216,10 @@ async function generateDungeonImage(player, dungeon) {
 
     const enemyX = 540;
     const enemyY = 145;
-    const enemySize = 100; // Đưa size của tất cả quái (kể cả goblin) về 100 như bình thường
-    const currentMob = dungeon.mob;
+    const enemySize = 100;
+    const currentMob = dungeon?.mob || FOREST_MOBS[0];
 
-    if (!dungeon.isHellBurnAnim && currentMob && fs.existsSync(currentMob.image)) {
+    if (!dungeon?.isHellBurnAnim && currentMob && fs.existsSync(currentMob.image)) {
         try {
             const enemyImg = await loadImage(currentMob.image);
             ctx.drawImage(enemyImg, enemyX, enemyY, enemySize, enemySize);
@@ -236,23 +236,23 @@ async function generateDungeonImage(player, dungeon) {
         } catch (e) {}
     }
 
-    if (dungeon.isHellBurnAnim && fs.existsSync(HELL_BURN_EFFECT_PATH)) {
+    if (dungeon?.isHellBurnAnim && fs.existsSync(HELL_BURN_EFFECT_PATH)) {
         try {
             const burnAnimImg = await loadImage(HELL_BURN_EFFECT_PATH);
             ctx.drawImage(burnAnimImg, enemyX - 95, enemyY - 140, 337.5, 337.5);
         } catch (e) {}
     } else {
-        if (dungeon.isCrit && fs.existsSync(CRIT_EFFECT_PATH)) {
+        if (dungeon?.isCrit && fs.existsSync(CRIT_EFFECT_PATH)) {
             try {
                 const critImg = await loadImage(CRIT_EFFECT_PATH);
                 ctx.drawImage(critImg, enemyX - 10, enemyY - 35, 90, 40);
             } catch (e) {}
-        } else if (dungeon.isMiss && fs.existsSync(MISS_EFFECT_PATH)) {
+        } else if (dungeon?.isMiss && fs.existsSync(MISS_EFFECT_PATH)) {
             try {
                 const missImg = await loadImage(MISS_EFFECT_PATH);
                 ctx.drawImage(missImg, enemyX - 10, enemyY - 35, 90, 40);
             } catch (e) {}
-        } else if (dungeon.isBlock && fs.existsSync(BLOCK_EFFECT_PATH)) {
+        } else if (dungeon?.isBlock && fs.existsSync(BLOCK_EFFECT_PATH)) {
             try {
                 const blockImg = await loadImage(BLOCK_EFFECT_PATH);
                 ctx.drawImage(blockImg, enemyX - 10, enemyY - 35, 90, 40);
@@ -266,7 +266,9 @@ async function generateDungeonImage(player, dungeon) {
     const eHudW = 410;
     const eHudH = 90;
 
-    const eHpRatio = Math.max(0, dungeon.enemyHp / currentMob.maxHp);
+    const maxEnemyHp = currentMob.maxHp || 80;
+    const enemyHp = dungeon?.enemyHp !== undefined ? dungeon.enemyHp : maxEnemyHp;
+    const eHpRatio = Math.max(0, enemyHp / maxEnemyHp);
     let eColor = '#2ecc71';
     if (eHpRatio <= 0.1) eColor = '#e74c3c';
     else if (eHpRatio <= 0.5) eColor = '#f39c12';
@@ -291,9 +293,9 @@ async function generateDungeonImage(player, dungeon) {
     drawOutlinedText(ctx, `${currentMob.name}`, eHudX + 80, eHudY + 30, "bold 16px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `Lv.`, eHudX + 225, eHudY + 30, "bold 16px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `${currentMob.level}`, eHudX + 252, eHudY + 30, "bold 16px sans-serif", "#f1c40f");
-    drawOutlinedText(ctx, `${dungeon.enemyHp}/${currentMob.maxHp}`, eHudX + 300, eHudY + 48, "bold 12px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `${enemyHp}/${maxEnemyHp}`, eHudX + 300, eHudY + 48, "bold 12px sans-serif", "#ffffff");
 
-    if (dungeon.burnTurns > 0 && fs.existsSync(BURN_ICON_PATH)) {
+    if ((dungeon?.burnTurns || 0) > 0 && fs.existsSync(BURN_ICON_PATH)) {
         try {
             const burnIconImg = await loadImage(BURN_ICON_PATH);
             const iconX = eHudX + 80;
@@ -310,7 +312,9 @@ async function generateDungeonImage(player, dungeon) {
     const pHudW = 410;
     const pHudH = 160;
 
-    const pHpRatio = Math.max(0, dungeon.playerHp / dungeon.maxPlayerHp);
+    const maxPlayerHp = dungeon?.maxPlayerHp || player?.stats?.hp || 100;
+    const currentPlayerHp = dungeon?.playerHp !== undefined ? dungeon.playerHp : maxPlayerHp;
+    const pHpRatio = Math.max(0, currentPlayerHp / maxPlayerHp);
     let pColor = '#2ecc71';
     if (pHpRatio <= 0.1) pColor = '#e74c3c';
     else if (pHpRatio <= 0.5) pColor = '#f39c12';
@@ -330,7 +334,7 @@ async function generateDungeonImage(player, dungeon) {
     const mpBarMaxW = 150;
     const mpBarH = 16;
     const maxMp = player?.maxMp || 60;
-    const currentMp = dungeon.playerMp !== undefined ? dungeon.playerMp : maxMp;
+    const currentMp = dungeon?.playerMp !== undefined ? dungeon.playerMp : maxMp;
     const mpRatio = Math.max(0, currentMp / maxMp);
 
     if (mpRatio > 0) {
@@ -361,7 +365,7 @@ async function generateDungeonImage(player, dungeon) {
     drawOutlinedText(ctx, `${player?.name || 'Player'}`, pHudX + 80, pHudY + 45, "bold 15px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `Lv.`, pHudX + 205, pHudY + 45, "bold 15px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `${player?.level || 1}`, pHudX + 233, pHudY + 45, "bold 15px sans-serif", "#f1c40f");
-    drawOutlinedText(ctx, `${dungeon.playerHp} / ${dungeon.maxPlayerHp}`, pHudX + 280, pHudY + 75, "bold 13px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `${currentPlayerHp} / ${maxPlayerHp}`, pHudX + 280, pHudY + 75, "bold 13px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `${currentMp} / ${maxMp}`, pHudX + 130, pHudY + 110, "bold 12px sans-serif", "#ffffff");
 
     return canvas.toBuffer('image/png');
@@ -477,7 +481,7 @@ client.on('messageCreate', async message => {
             .setColor(0x5865F2)
             .addFields(
                 { name: "👤 Chủng Tộc", value: `\`${raceInfo}\``, inline: true },
-                { name: "⭐ C cấp Độ", value: `\`Level ${player.level}\``, inline: true },
+                { name: "⭐ Cấp Độ", value: `\`Level ${player.level}\``, inline: true },
                 { name: "📊 EXP", value: `\`${player.exp} / ${player.maxExp}\``, inline: true },
                 { name: "⚡ Thể Lực", value: `${staminaBar} \`[${player.stamina}/${player.maxStamina}]\``, inline: false }
             )
@@ -648,7 +652,7 @@ client.on('interactionCreate', async interaction => {
     if (['dg_punch', 'dg_roar', 'dg_hell_burn', 'dg_bag', 'dg_flee'].includes(interaction.customId)) {
         const dungeon = activeDungeons.get(userId);
         if (!dungeon) {
-            return interaction.reply({ content: "⚠️ Phiên thám hiểm đã kết thúc!", ephemeral: true });
+            return interaction.reply({ content: "⚠️ Phiên thám hiểm đã kết thúc hoặc đã hết hạn!", ephemeral: true });
         }
 
         await interaction.deferUpdate();
