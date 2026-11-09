@@ -86,7 +86,6 @@ const FOREST_MOBS = [
     }
 ];
 
-// Danh sách trang bị có thể rớt khi đánh quái khu rừng
 const FOREST_EQUIPMENT_DROPS = [
     { name: "Kiếm gỉ sét", type: "weapon", atk: 5, def: 0, durability: 10, maxDurability: 10, rarity: "Common", dropRate: 5 },
     { name: "Giáp mỏng", type: "armor", atk: 0, def: 20, durability: 10, maxDurability: 10, rarity: "Common", dropRate: 5 },
@@ -280,7 +279,6 @@ async function generateDungeonImage(player, dungeon) {
         }
     }
 
-    // ================= ENEMY HUD =================
     const eHudX = 30;
     const eHudY = 25;
     const eHudW = 410;
@@ -315,18 +313,6 @@ async function generateDungeonImage(player, dungeon) {
     drawOutlinedText(ctx, `${currentMob.level}`, eHudX + 252, eHudY + 30, "bold 16px sans-serif", "#f1c40f");
     drawOutlinedText(ctx, `${enemyHp}/${maxEnemyHp}`, eHudX + 300, eHudY + 48, "bold 12px sans-serif", "#ffffff");
 
-    if ((dungeon?.burnTurns || 0) > 0 && fs.existsSync(BURN_ICON_PATH)) {
-        try {
-            const burnIconImg = await loadImage(BURN_ICON_PATH);
-            const iconX = eHudX + 80;
-            const iconY = eHudY + 62;
-            const iconSize = 22;
-            ctx.drawImage(burnIconImg, iconX, iconY, iconSize, iconSize);
-            drawOutlinedText(ctx, `${dungeon.burnTurns}t`, iconX + 26, iconY + 16, "bold 12px sans-serif", "#ff4757");
-        } catch (e) {}
-    }
-
-    // ================= PLAYER HUD =================
     const pHudX = 450;
     const pHudY = 310;
     const pHudW = 410;
@@ -435,7 +421,8 @@ client.on('messageCreate', async message => {
             maxMp: 60,
             race: selectedRace.name,
             stats: { hp: selectedRace.hp, atk: selectedRace.atk, def: selectedRace.def, spd: selectedRace.spd },
-            inventory: []
+            inventory: [],
+            equipped: { weapon: null, armor: null } // Trang bị đang mặc
         };
         await savePlayerData(userId, newPlayer);
 
@@ -517,11 +504,42 @@ client.on('messageCreate', async message => {
             new ButtonBuilder().setCustomId('btn_nhiemvu').setLabel('📜 Nhiệm Vụ').setStyle(ButtonStyle.Secondary).setDisabled(true)
         );
         const row3 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('btn_hanhtrang').setLabel('🎒 Hành Trang').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('btn_hanhtrang').setLabel('🎒 Hành Trang & Trang Bị').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('btn_cuahang').setLabel('🛒 Cửa Hàng').setStyle(ButtonStyle.Secondary)
         );
 
         return message.reply({ embeds: [menuEmbed], components: [row1, row2, row3] });
+    }
+
+    // Lệnh xem hành trang & mặc đồ nhanh qua chat: !mac <số_thứ_tự>
+    if (message.content.startsWith('!mac ')) {
+        const player = await getPlayerData(userId);
+        if (!player) return message.reply("⚠️ Bạn chưa có nhân vật!");
+
+        const args = message.content.split(' ');
+        const index = parseInt(args[1]) - 1;
+
+        if (!player.inventory || !player.inventory[index]) {
+            return message.reply("⚠️ Số thứ tự trang bị trong hành trang không hợp lệ!");
+        }
+
+        const item = player.inventory[index];
+        if (!player.equipped) player.equipped = { weapon: null, armor: null };
+
+        // Gỡ đồ cũ nếu có, trả về balo
+        if (item.type === 'weapon') {
+            if (player.equipped.weapon) player.inventory.push(player.equipped.weapon);
+            player.equipped.weapon = item;
+        } else if (item.type === 'armor') {
+            if (player.equipped.armor) player.inventory.push(player.equipped.armor);
+            player.equipped.armor = item;
+        }
+
+        // Xóa đồ khỏi balo
+        player.inventory.splice(index, 1);
+        await savePlayerData(userId, player);
+
+        return message.reply(`✅ Bạn đã trang bị thành công **${item.name}** [+${item.atk || item.def} ${item.type === 'weapon' ? 'ATK' : 'DEF'}]!`);
     }
 });
 
@@ -558,7 +576,8 @@ client.on('interactionCreate', async interaction => {
             maxMp: 60,
             race: null,
             stats: null,
-            inventory: []
+            inventory: [],
+            equipped: { weapon: null, armor: null }
         };
         await savePlayerData(userId, newPlayer);
 
@@ -615,6 +634,33 @@ client.on('interactionCreate', async interaction => {
         return interaction.update({ embeds: [resultEmbed], files: [], components: [] });
     }
 
+    // Xử lý nút mở Hành Trang (ở Menu chính hoặc trong Dungeon)
+    if (interaction.customId === 'btn_hanhtrang' || interaction.customId === 'dg_bag') {
+        await interaction.deferReply({ ephemeral: true });
+        const player = await getPlayerData(userId);
+        if (!player) return interaction.editReply({ content: "⚠️ Không tìm thấy dữ liệu nhân vật!" });
+
+        const inventory = player.inventory || [];
+        const equipped = player.equipped || { weapon: null, armor: null };
+
+        let weaponText = equipped.weapon ? `🗡️ Vũ khí: **${equipped.weapon.name}** (+${equipped.weapon.atk} ATK) [Độ bền: ${equipped.weapon.durability}/${equipped.weapon.maxDurability}]` : "🗡️ Vũ khí: *Trống*";
+        let armorText = equipped.armor ? `🛡️ Giáp/Khiên: **${equipped.armor.name}** (+${equipped.armor.def} DEF) [Độ bền: ${equipped.armor.durability}/${equipped.armor.maxDurability}]` : "🛡️ Giáp/Khiên: *Trống*";
+
+        let invList = inventory.length > 0 
+            ? inventory.map((item, index) => `**${index + 1}. ${item.name}** [${item.rarity}] - ATK: +${item.atk}, DEF: +${item.def} | Độ bền: ${item.durability}/${item.maxDurability}`).join('\n')
+            : "*Balo trống*";
+
+        const bagEmbed = new EmbedBuilder()
+            .setTitle(`🎒 HÀNH TRANG & TRANG BỊ CỦA ${player.name}`)
+            .setColor(0x3498DB)
+            .addFields(
+                { name: "⚙️ Đang Trang Bị", value: `${weaponText}\n${armorText}`, inline: false },
+                { name: "📦 Vật Phẩm Trong Balo", value: `${invList}\n\n💡 *Cách mặc đồ: Gõ lệnh \`!mac <số_thứ_tự>\` trong chat!*`, inline: false }
+            );
+
+        return interaction.editReply({ embeds: [bagEmbed] });
+    }
+
     if (interaction.customId === 'btn_dungeon') {
         const player = await getPlayerData(userId);
         if (!player || !player.race) {
@@ -622,19 +668,23 @@ client.on('interactionCreate', async interaction => {
         }
 
         await interaction.deferUpdate();
-
         const spawnedMob = spawnRandomMob();
 
-        // 🌟 Bắt đầu trận đấu mới: Reset/Hồi phục MP về maxMp đầy đủ
         const maxMpValue = player.maxMp || 60;
         player.mp = maxMpValue;
         await savePlayerData(userId, player);
+
+        // Tính tổng ATK và DEF bao gồm cả trang bị đang mặc
+        let totalAtk = player.stats.atk + (player.equipped?.weapon?.atk || 0);
+        let totalDef = player.stats.def + (player.equipped?.armor?.def || 0);
 
         activeDungeons.set(userId, {
             wave: 1,
             mob: spawnedMob,
             playerHp: player.stats.hp,
             maxPlayerHp: player.stats.hp,
+            playerAtk: totalAtk,
+            playerDef: totalDef,
             playerMp: maxMpValue,
             maxPlayerMp: maxMpValue,
             enemyHp: spawnedMob.hp,
@@ -652,7 +702,7 @@ client.on('interactionCreate', async interaction => {
 
         const dungeonEmbed = new EmbedBuilder()
             .setTitle(`🌲 DUNGEON: KHU RỪNG SƯƠNG MÙ`)
-            .setDescription(`**${player.name}** chạm trán **${spawnedMob.name}** xuất hiện ngẫu nhiên!\n⚡ MP đã được hồi phục đầy đủ! Chọn chiêu thức bên dưới!`)
+            .setDescription(`**${player.name}** chạm trán **${spawnedMob.name}**!\n⚡ MP đã hồi phục! ATK: ${totalAtk} | DEF: ${totalDef}\nChọn chiêu thức bên dưới!`)
             .setColor(0x2ECC71)
             .setImage('attachment://dungeon.png');
 
@@ -676,7 +726,7 @@ client.on('interactionCreate', async interaction => {
         return interaction.editReply({ embeds: [dungeonEmbed], files: [attachment], components: [rowSkills, rowActions] });
     }
 
-    if (['dg_punch', 'dg_roar', 'dg_hell_burn', 'dg_bag', 'dg_flee'].includes(interaction.customId)) {
+    if (['dg_punch', 'dg_roar', 'dg_hell_burn', 'dg_flee'].includes(interaction.customId)) {
         const dungeon = activeDungeons.get(userId);
         if (!dungeon) {
             return interaction.reply({ content: "⚠️ Phiên thám hiểm đã kết thúc hoặc đã hết hạn!", ephemeral: true });
@@ -696,22 +746,12 @@ client.on('interactionCreate', async interaction => {
             return interaction.editReply({ embeds: [fleeEmbed], files: [], components: [] });
         }
 
-        if (interaction.customId === 'dg_bag') {
-            const inventory = player.inventory || [];
-            if (inventory.length === 0) {
-                return interaction.followUp({ content: "🎒 Hành trang của bạn đang trống không có trang bị nào!", ephemeral: true });
-            }
-            let invList = inventory.map((item, index) => `**${index + 1}. ${item.name}** [${item.rarity}] - ATK: +${item.atk}, DEF: +${item.def} | Độ bền: ${item.durability}/${item.maxDurability}`).join('\n');
-            return interaction.followUp({ content: `🎒 **HÀNH TRANG TRANG BỊ:**\n${invList}`, ephemeral: true });
-        }
-
         let combatLog = "";
         dungeon.isCrit = false;
         dungeon.isMiss = false;
         dungeon.isBlock = false;
         dungeon.isHellBurnAnim = false;
 
-        // 🌟 T1: Hồi 10 MP mỗi turn
         const maxMpLimit = player.maxMp || 60;
         if (dungeon.playerMp < maxMpLimit) {
             dungeon.playerMp = Math.min(maxMpLimit, dungeon.playerMp + 10);
@@ -724,6 +764,9 @@ client.on('interactionCreate', async interaction => {
             dungeon.burnTurns -= 1;
             combatLog += `🔥 ${currentMob.name} bị thiêu đốt bởi **Hell Burn**, mất **${burnDamage}** HP! (Còn ${dungeon.burnTurns} lượt)\n`;
         }
+
+        // Lấy chỉ số ATK thực tế (bao gồm đồ mặc)
+        let currentAtk = dungeon.playerAtk || (player.stats.atk + (player.equipped?.weapon?.atk || 0));
 
         if (interaction.customId === 'dg_roar') {
             if (dungeon.playerMp < 15) {
@@ -740,12 +783,12 @@ client.on('interactionCreate', async interaction => {
                 dungeon.playerMp -= 25;
                 dungeon.isHellBurnAnim = true;
                 dungeon.burnTurns = 2;
-                let burnSkillDamage = Math.round(player.stats.atk * 1.8);
+                let burnSkillDamage = Math.round(currentAtk * 1.8);
                 dungeon.enemyHp -= burnSkillDamage;
-                combatLog += `🌋 **${player.name}** phóng thích **Hell Burn** (-25 MP) trùm kín ${currentMob.name}, gây **${burnSkillDamage}** sát thương!\n`;
+                combatLog += `🌋 **${player.name}** phóng thích **Hell Burn** (-25 MP), gây **${burnSkillDamage}** sát thương!\n`;
             }
         } else if (interaction.customId === 'dg_punch') {
-            let baseDamage = player.stats.atk;
+            let baseDamage = currentAtk;
 
             if (dungeon.roarBuff) {
                 baseDamage = Math.round(baseDamage * 1.2);
@@ -759,13 +802,13 @@ client.on('interactionCreate', async interaction => {
             if (roll < MISS_CHANCE) {
                 dungeon.isMiss = true;
                 baseDamage = 0;
-                combatLog += `💨 **MISS!** Đòn đánh của **${player.name}** đã bị ${currentMob.name} né được!\n`;
+                combatLog += `💨 **MISS!** Đòn đánh của bạn đã bị ${currentMob.name} né được!\n`;
             } else if (roll < MISS_CHANCE + CRIT_CHANCE) {
                 dungeon.isCrit = true;
                 baseDamage = Math.round(baseDamage * 1.5);
-                combatLog += `🔥 **CRITICAL!** **${player.name}** đấm chí mạng gây **${baseDamage}** sát thương!\n`;
+                combatLog += `🔥 **CRITICAL!** Đấm chí mạng gây **${baseDamage}** sát thương!\n`;
             } else {
-                combatLog += `👊 **${player.name}** đấm thường gây **${baseDamage}** sát thương!\n`;
+                combatLog += `👊 Đấm thường gây **${baseDamage}** sát thương!\n`;
             }
 
             dungeon.enemyHp -= baseDamage;
@@ -773,14 +816,12 @@ client.on('interactionCreate', async interaction => {
 
         if (dungeon.enemyHp < 0) dungeon.enemyHp = 0;
 
-        // Xử lý khi tiêu diệt quái thành công
         if (dungeon.enemyHp <= 0) {
             activeDungeons.delete(userId);
             
             const gainedExp = Math.floor(Math.random() * (89 - 60 + 1)) + 60;
             player.exp = (player.exp || 0) + gainedExp;
             
-            // 🌟 Roll trang bị rơi ra từ quái rừng
             const droppedItems = rollEquipmentDrops();
             if (!player.inventory) player.inventory = [];
             
@@ -816,10 +857,11 @@ client.on('interactionCreate', async interaction => {
             return interaction.editReply({ embeds: [winEmbed], files: [attachment], components: [] });
         }
 
-        const monsterDmg = Math.max(1, currentMob.atk - Math.floor(player.stats.def / 2));
+        let currentDef = dungeon.playerDef || (player.stats.def + (player.equipped?.armor?.def || 0));
+        const monsterDmg = Math.max(1, currentMob.atk - Math.floor(currentDef / 2));
         dungeon.playerHp -= monsterDmg;
         if (dungeon.playerHp < 0) dungeon.playerHp = 0;
-        combatLog += `🐾 **${currentMob.name}** phản công đớp lại, gây **${monsterDmg}** sát thương lên bạn!\n`;
+        combatLog += `🐾 **${currentMob.name}** phản công, gây **${monsterDmg}** sát thương lên bạn!\n`;
 
         if (dungeon.playerHp <= 0) {
             activeDungeons.delete(userId);
