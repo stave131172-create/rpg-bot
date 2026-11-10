@@ -96,6 +96,17 @@ const FOREST_MOBS = [
     }
 ];
 
+// 🌟 Boss triệu hồi qua !dungeon 2004: Ma Vương Chó Săn Hỗn Độn Lv.17
+const CHEAT_BOSS_MOB = {
+    name: "Ma Vương Chó Săn Hỗn Độn",
+    hp: 180,
+    maxHp: 180,
+    level: 17,
+    atk: 22,
+    def: 12,
+    image: path.join(__dirname, 'assets', 'chaos_dog_mob.png')
+};
+
 const FOREST_EQUIPMENT_DROPS = [
     { name: "Kiếm gỉ sét", type: "weapon", atk: 5, def: 0, durability: 10, maxDurability: 10, rarity: "Common", dropRate: 5 },
     { name: "Giáp mỏng", type: "armor", atk: 0, def: 20, durability: 10, maxDurability: 10, rarity: "Common", dropRate: 5 },
@@ -125,9 +136,15 @@ function spawnRandomMob() {
     return FOREST_MOBS[0];
 }
 
+// 🌟 Đã cập nhật nhận diện file map2.png / map2.jpg
 function getMapPath() {
+    const map2Png = path.join(__dirname, 'map2.png');
+    const map2Jpg = path.join(__dirname, 'map2.jpg');
     const pngPath = path.join(__dirname, 'map.png');
     const jpgPath = path.join(__dirname, 'map.jpg');
+
+    if (fs.existsSync(map2Png)) return map2Png;
+    if (fs.existsSync(map2Jpg)) return map2Jpg;
     if (fs.existsSync(pngPath)) return pngPath;
     if (fs.existsSync(jpgPath)) return jpgPath;
     return null;
@@ -245,15 +262,14 @@ async function generateDungeonImage(player, dungeon) {
 
     const currentMob = dungeon?.mob || FOREST_MOBS[0];
 
-    // 🌟 Phóng to gấp đôi plant_mob (190x190) và đẩy toạ độ Y lên cao hơn (ví dụ y = 55) để cố định vị trí chân không bị tràn xuống dưới
-    let enemySize = 100;
-    let enemyX = 540;
-    let enemyY = 145;
+    let enemySize = 120;
+    let enemyX = 520;
+    let enemyY = 130;
 
-    if (currentMob.name === "Cây Ăn Thịt Hoang Dã") {
-        enemySize = 190; 
-        enemyX = 495;    
-        enemyY = 55;     // Đẩy lên cao hơn để phần phình to hướng lên trên và sang trái
+    if (currentMob.name.includes("Ma Vương Chó Săn Hỗn Độn")) {
+        enemySize = 180; 
+        enemyX = 480;    
+        enemyY = 90;     
     }
 
     if (!dungeon?.isHellBurnAnim && currentMob && fs.existsSync(currentMob.image)) {
@@ -276,7 +292,7 @@ async function generateDungeonImage(player, dungeon) {
     if (dungeon?.isHellBurnAnim && fs.existsSync(HELL_BURN_EFFECT_PATH)) {
         try {
             const burnAnimImg = await loadImage(HELL_BURN_EFFECT_PATH);
-            ctx.drawImage(burnAnimImg, enemyX - 45, enemyY - 50, enemySize * 1.6, enemySize * 1.6);
+            ctx.drawImage(burnAnimImg, enemyX - 35, enemyY - 40, enemySize * 1.5, enemySize * 1.5);
         } catch (e) {}
     } else {
         const effectX = enemyX + (enemySize / 2) - 45;
@@ -328,9 +344,9 @@ async function generateDungeonImage(player, dungeon) {
         } catch (e) {}
     }
 
-    drawOutlinedText(ctx, `${currentMob.name}`, eHudX + 80, eHudY + 30, "bold 16px sans-serif", "#ffffff");
-    drawOutlinedText(ctx, `Lv.`, eHudX + 225, eHudY + 30, "bold 16px sans-serif", "#ffffff");
-    drawOutlinedText(ctx, `${currentMob.level}`, eHudX + 252, eHudY + 30, "bold 16px sans-serif", "#f1c40f");
+    drawOutlinedText(ctx, `${currentMob.name}`, eHudX + 80, eHudY + 30, "bold 15px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `Lv.`, eHudX + 285, eHudY + 30, "bold 15px sans-serif", "#ffffff");
+    drawOutlinedText(ctx, `${currentMob.level}`, eHudX + 312, eHudY + 30, "bold 15px sans-serif", "#f1c40f");
     drawOutlinedText(ctx, `${enemyHp}/${maxEnemyHp}`, eHudX + 300, eHudY + 48, "bold 12px sans-serif", "#ffffff");
 
     const pHudX = 450;
@@ -410,6 +426,24 @@ client.on('messageCreate', async message => {
         await resetAllData();
         activeDungeons.clear();
         return message.reply("🧹 **Đã reset toàn bộ dữ liệu nhân vật trên MongoDB thành công!**");
+    }
+
+    if (message.content === '!dungeon 2004') {
+        const player = await getPlayerData(userId);
+        if (!player || !player.race) {
+            return message.reply("⚠️ Bạn cần tạo nhân vật và thức tỉnh chủng tộc trước! Gõ `!start`.");
+        }
+
+        const readyEmbed = new EmbedBuilder()
+            .setTitle("🔥 [TRIỆU HỒI MA VƯƠNG HỖN ĐỘN] 🔥")
+            .setDescription(`⚠️ **CẢNH BÁO HUYẾT SÁT!** Không gian rách toác, hắc khí ngập trời...\nThực thể tối cao **${CHEAT_BOSS_MOB.name} (Lv.${CHEAT_BOSS_MOB.level})** đã giáng lâm chặn đứng con đường của anh hùng **${player.name}**!\n\n*Hơi thở tử vong phả thẳng vào mặt, hãy ấn nút **Sẵn Sàng** bên dưới để bước vào trận chiến định mệnh!*`)
+            .setColor(0x9B59B6);
+
+        const readyRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`start_cheat_boss_${userId}`).setLabel('⚔️ Khai Chiến Với Ma Vương!').setStyle(ButtonStyle.Danger)
+        );
+
+        return message.reply({ embeds: [readyEmbed], components: [readyRow] });
     }
 
     if (message.content.startsWith('!start 2004')) {
@@ -618,6 +652,73 @@ client.on('interactionCreate', async interaction => {
     }
 
     if (!interaction.isButton()) return;
+
+    if (interaction.customId.startsWith('start_cheat_boss_')) {
+        const targetUserId = interaction.customId.split('_')[3];
+        if (userId !== targetUserId) return interaction.reply({ content: "⚠️ Không phải trận chiến của bạn!", ephemeral: true });
+
+        const player = await getPlayerData(userId);
+        if (!player || !player.race) {
+            return interaction.reply({ content: "⚠️ Không tìm thấy dữ liệu nhân vật!", ephemeral: true });
+        }
+
+        await interaction.update({ content: "⚔️ **TRẬN CHIẾN SINH TỬ BẮT ĐẦU!**", embeds: [], components: [] });
+
+        const maxMpValue = player.maxMp || 60;
+        player.mp = maxMpValue;
+        await savePlayerData(userId, player);
+
+        let totalAtk = player.stats.atk + (player.equipped?.weapon?.atk || 0);
+        let totalDef = player.stats.def + (player.equipped?.armor?.def || 0);
+
+        activeDungeons.set(userId, {
+            wave: 1,
+            mob: CHEAT_BOSS_MOB,
+            playerHp: player.stats.hp,
+            maxPlayerHp: player.stats.hp,
+            playerAtk: totalAtk,
+            playerDef: totalDef,
+            playerMp: maxMpValue,
+            maxPlayerMp: maxMpValue,
+            enemyHp: CHEAT_BOSS_MOB.hp,
+            roarBuff: false,
+            isCrit: false,
+            isMiss: false,
+            isBlock: false,
+            isHellBurnAnim: false,
+            burnTurns: 0
+        });
+
+        const dungeon = activeDungeons.get(userId);
+        const imageBuffer = await generateDungeonImage(player, dungeon);
+        const attachment = new AttachmentBuilder(imageBuffer, { name: 'dungeon.png' });
+
+        const dungeonEmbed = new EmbedBuilder()
+            .setTitle(`🔥 ĐẠI CHIẾN: ${CHEAT_BOSS_MOB.name}`)
+            .setDescription(`**${player.name}** đối đầu với **${CHEAT_BOSS_MOB.name}**!\n⚡ MP đầy đủ! ATK: ${totalAtk} | DEF: ${totalDef}\nChọn chiêu thức bên dưới!`)
+            .setColor(0x9B59B6)
+            .setImage('attachment://dungeon.png');
+
+        const skillComponents = [
+            new ButtonBuilder().setCustomId('dg_punch').setLabel('👊 Punch (Đấm)').setStyle(ButtonStyle.Primary),
+            new ButtonBuilder().setCustomId('dg_roar').setLabel('🦁 Roar (Gầm - 15MP)').setStyle(ButtonStyle.Primary)
+        ];
+
+        if (player.race === 'Dragon') {
+            skillComponents.push(
+                new ButtonBuilder().setCustomId('dg_hell_burn').setLabel('🔥 Hell Burn (25MP)').setStyle(ButtonStyle.Danger)
+            );
+        }
+
+        const rowSkills = new ActionRowBuilder().addComponents(skillComponents);
+        const rowActions = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('dg_bag').setLabel('🎒 Balo').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('dg_flee').setLabel('🏃 Rút lui').setStyle(ButtonStyle.Danger)
+        );
+
+        const channel = interaction.channel;
+        return channel.send({ embeds: [dungeonEmbed], files: [attachment], components: [rowSkills, rowActions] });
+    }
 
     if (interaction.customId.startsWith('roll_race_')) {
         const targetUserId = interaction.customId.split('_')[2];
@@ -895,9 +996,9 @@ client.on('interactionCreate', async interaction => {
         const attachmentAnim = new AttachmentBuilder(imageBufferAnim, { name: 'dungeon.png' });
 
         const updateDungeonEmbed = new EmbedBuilder()
-            .setTitle(`🌲 DUNGEON: KHU RỪNG SƯƠNG MÙ`)
+            .setTitle(`🔥 ĐẠI CHIẾN: ${CHEAT_BOSS_MOB.name}`)
             .setDescription(`${combatLog}\n**${player.name}** [HP: ${dungeon.playerHp}/${dungeon.maxPlayerHp}] VS **${currentMob.name}** [HP: ${dungeon.enemyHp}/${currentMob.maxHp}]`)
-            .setColor(0x2ECC71)
+            .setColor(0x9B59B6)
             .setImage('attachment://dungeon.png');
 
         const skillComponents = [
