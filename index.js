@@ -71,7 +71,7 @@ const FOREST_MOBS = [
         level: 3,
         atk: 12,
         def: 4,
-        rate: 50, // Điều chỉnh lại tỉ lệ: 50%
+        rate: 50,
         image: path.join(__dirname, 'assets', 'slime_mob.png')
     },
     {
@@ -81,7 +81,7 @@ const FOREST_MOBS = [
         level: 4,
         atk: 15,
         def: 5,
-        rate: 30, // Điều chỉnh lại tỉ lệ: 30%
+        rate: 30,
         image: path.join(__dirname, 'assets', 'goblin_mob.png')
     },
     {
@@ -91,7 +91,7 @@ const FOREST_MOBS = [
         level: 5,
         atk: 18,
         def: 8,
-        rate: 20, // Tỉ lệ xuất hiện: 20%
+        rate: 20,
         image: path.join(__dirname, 'assets', 'plant_mob.png')
     }
 ];
@@ -243,10 +243,18 @@ async function generateDungeonImage(player, dungeon) {
         ctx.fillRect(0, 0, width, height);
     }
 
-    const enemyX = 540;
-    const enemyY = 145;
-    const enemySize = 100;
     const currentMob = dungeon?.mob || FOREST_MOBS[0];
+
+    // 🌟 Tuỳ chỉnh kích thước và toạ độ riêng cho plant_mob (Cây Ăn Thịt Hoang Dã) to gấp đôi nhưng không bị tràn chân xuống dưới
+    let enemySize = 100;
+    let enemyX = 540;
+    let enemyY = 145;
+
+    if (currentMob.name === "Cây Ăn Thịt Hoang Dã") {
+        enemySize = 200; // To gấp đôi
+        enemyX = 490;    // Dịch sang trái một chút để cân xứng khi phóng to
+        enemyY = 45;     // Dịch lên trên một khoảng bằng đúng phần tăng thêm để chân vẫn giữ nguyên vị trí cũ
+    }
 
     if (!dungeon?.isHellBurnAnim && currentMob && fs.existsSync(currentMob.image)) {
         try {
@@ -274,17 +282,17 @@ async function generateDungeonImage(player, dungeon) {
         if (dungeon?.isCrit && fs.existsSync(CRIT_EFFECT_PATH)) {
             try {
                 const critImg = await loadImage(CRIT_EFFECT_PATH);
-                ctx.drawImage(critImg, enemyX - 10, enemyY - 35, 90, 40);
+                ctx.drawImage(critImg, enemyX + (enemySize / 2) - 45, enemyY - 35, 90, 40);
             } catch (e) {}
         } else if (dungeon?.isMiss && fs.existsSync(MISS_EFFECT_PATH)) {
             try {
                 const missImg = await loadImage(MISS_EFFECT_PATH);
-                ctx.drawImage(missImg, enemyX - 10, enemyY - 35, 90, 40);
+                ctx.drawImage(missImg, enemyX + (enemySize / 2) - 45, enemyY - 35, 90, 40);
             } catch (e) {}
         } else if (dungeon?.isBlock && fs.existsSync(BLOCK_EFFECT_PATH)) {
             try {
                 const blockImg = await loadImage(BLOCK_EFFECT_PATH);
-                ctx.drawImage(blockImg, enemyX - 10, enemyY - 35, 90, 40);
+                ctx.drawImage(blockImg, enemyX + (enemySize / 2) - 45, enemyY - 35, 90, 40);
             } catch (e) {}
         }
     }
