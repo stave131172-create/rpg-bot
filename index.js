@@ -71,7 +71,7 @@ const FOREST_MOBS = [
         level: 3,
         atk: 12,
         def: 4,
-        rate: 60,
+        rate: 50, // Điều chỉnh lại tỉ lệ: 50%
         image: path.join(__dirname, 'assets', 'slime_mob.png')
     },
     {
@@ -81,8 +81,18 @@ const FOREST_MOBS = [
         level: 4,
         atk: 15,
         def: 5,
-        rate: 40,
+        rate: 30, // Điều chỉnh lại tỉ lệ: 30%
         image: path.join(__dirname, 'assets', 'goblin_mob.png')
+    },
+    {
+        name: "Cây Ăn Thịt Hoang Dã",
+        hp: 110,
+        maxHp: 110,
+        level: 5,
+        atk: 18,
+        def: 8,
+        rate: 20, // Tỉ lệ xuất hiện: 20%
+        image: path.join(__dirname, 'assets', 'plant_mob.png')
     }
 ];
 
@@ -422,7 +432,7 @@ client.on('messageCreate', async message => {
             race: selectedRace.name,
             stats: { hp: selectedRace.hp, atk: selectedRace.atk, def: selectedRace.def, spd: selectedRace.spd },
             inventory: [],
-            equipped: { weapon: null, armor: null } // Trang bị đang mặc
+            equipped: { weapon: null, armor: null }
         };
         await savePlayerData(userId, newPlayer);
 
@@ -511,7 +521,6 @@ client.on('messageCreate', async message => {
         return message.reply({ embeds: [menuEmbed], components: [row1, row2, row3] });
     }
 
-    // Lệnh xem hành trang & mặc đồ nhanh qua chat: !mac <số_thứ_tự>
     if (message.content.startsWith('!mac ')) {
         const player = await getPlayerData(userId);
         if (!player) return message.reply("⚠️ Bạn chưa có nhân vật!");
@@ -526,7 +535,6 @@ client.on('messageCreate', async message => {
         const item = player.inventory[index];
         if (!player.equipped) player.equipped = { weapon: null, armor: null };
 
-        // Gỡ đồ cũ nếu có, trả về balo
         if (item.type === 'weapon') {
             if (player.equipped.weapon) player.inventory.push(player.equipped.weapon);
             player.equipped.weapon = item;
@@ -535,7 +543,6 @@ client.on('messageCreate', async message => {
             player.equipped.armor = item;
         }
 
-        // Xóa đồ khỏi balo
         player.inventory.splice(index, 1);
         await savePlayerData(userId, player);
 
@@ -634,7 +641,6 @@ client.on('interactionCreate', async interaction => {
         return interaction.update({ embeds: [resultEmbed], files: [], components: [] });
     }
 
-    // Xử lý nút mở Hành Trang (ở Menu chính hoặc trong Dungeon)
     if (interaction.customId === 'btn_hanhtrang' || interaction.customId === 'dg_bag') {
         await interaction.deferReply({ ephemeral: true });
         const player = await getPlayerData(userId);
@@ -674,7 +680,6 @@ client.on('interactionCreate', async interaction => {
         player.mp = maxMpValue;
         await savePlayerData(userId, player);
 
-        // Tính tổng ATK và DEF bao gồm cả trang bị đang mặc
         let totalAtk = player.stats.atk + (player.equipped?.weapon?.atk || 0);
         let totalDef = player.stats.def + (player.equipped?.armor?.def || 0);
 
@@ -765,7 +770,6 @@ client.on('interactionCreate', async interaction => {
             combatLog += `🔥 ${currentMob.name} bị thiêu đốt bởi **Hell Burn**, mất **${burnDamage}** HP! (Còn ${dungeon.burnTurns} lượt)\n`;
         }
 
-        // Lấy chỉ số ATK thực tế (bao gồm đồ mặc)
         let currentAtk = dungeon.playerAtk || (player.stats.atk + (player.equipped?.weapon?.atk || 0));
 
         if (interaction.customId === 'dg_roar') {
