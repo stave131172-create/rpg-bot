@@ -1,21 +1,24 @@
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, AttachmentBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, AttachmentBuilder, Events } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 const { MongoClient } = require('mongodb');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 const express = require('express');
+
+// ================= WEB SERVER KEEP-ALIVE CHO RENDER =================
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-    res.send('RPG Bot is alive and running 24/7!');
+    res.send('RPG Bot RPG_#7363 is alive and running 24/7!');
 });
 
 app.listen(PORT, () => {
-    console.log(`Server is listening on port ${PORT}`);
+    console.log(`🌐 Web server đang lắng nghe trên cổng ${PORT}`);
 });
 
+// ================= KHỞI TẠO DISCORD CLIENT =================
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -136,7 +139,7 @@ function spawnRandomMob() {
     return FOREST_MOBS[0];
 }
 
-// 🌟 Đã cập nhật nhận diện file map2.png / map2.jpg
+// 🌟 Ưu tiên nhận diện map2.png / map2.jpg
 function getMapPath() {
     const map2Png = path.join(__dirname, 'map2.png');
     const map2Jpg = path.join(__dirname, 'map2.jpg');
@@ -413,8 +416,9 @@ async function generateDungeonImage(player, dungeon) {
     return canvas.toBuffer('image/png');
 }
 
-client.once('ready', () => {
-    console.log(`Bot đã đăng nhập thành công: ${client.user.tag}`);
+// 🌟 Dùng sự kiện ClientReady sạch log v14
+client.once(Events.ClientReady, (c) => {
+    console.log(`✅ Bot đã đăng nhập thành công: ${c.user.tag}`);
 });
 
 client.on('messageCreate', async message => {
