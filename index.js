@@ -99,7 +99,7 @@ const FOREST_MOBS = [
     }
 ];
 
-// 🌟 Boss triệu hồi qua !dungeon 2004: Ma Vương Chó Săn Hỗn Độn Lv.17
+// 🌟 Boss Ma Vương Chó Săn Hỗn Độn Lv.17
 const CHEAT_BOSS_MOB = {
     name: "Ma Vương Chó Săn Hỗn Độn",
     hp: 180,
@@ -139,17 +139,22 @@ function spawnRandomMob() {
     return FOREST_MOBS[0];
 }
 
-// 🌟 Ưu tiên nhận diện map2.png / map2.jpg
-function getMapPath() {
+// 🌟 Hàm lấy đường dẫn Map: Nếu là Ma Vương thì bắt buộc dùng map2, còn lại dùng map thường
+function getMapPath(isBoss = false) {
     const map2Png = path.join(__dirname, 'map2.png');
     const map2Jpg = path.join(__dirname, 'map2.jpg');
     const pngPath = path.join(__dirname, 'map.png');
     const jpgPath = path.join(__dirname, 'map.jpg');
 
-    if (fs.existsSync(map2Png)) return map2Png;
-    if (fs.existsSync(map2Jpg)) return map2Jpg;
+    if (isBoss) {
+        if (fs.existsSync(map2Png)) return map2Png;
+        if (fs.existsSync(map2Jpg)) return map2Jpg;
+    }
+
     if (fs.existsSync(pngPath)) return pngPath;
     if (fs.existsSync(jpgPath)) return jpgPath;
+    if (fs.existsSync(map2Png)) return map2Png;
+    if (fs.existsSync(map2Jpg)) return map2Jpg;
     return null;
 }
 
@@ -249,7 +254,11 @@ async function generateDungeonImage(player, dungeon) {
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
 
-    const mapPath = getMapPath();
+    const currentMob = dungeon?.mob || FOREST_MOBS[0];
+    const isBoss = currentMob.name.includes("Ma Vương Chó Săn Hỗn Độn");
+
+    // 🌟 Dùng map2 riêng cho Ma Vương, map thường cho dungeon khác
+    const mapPath = getMapPath(isBoss);
     if (mapPath) {
         try {
             const bgImage = await loadImage(mapPath);
@@ -263,16 +272,15 @@ async function generateDungeonImage(player, dungeon) {
         ctx.fillRect(0, 0, width, height);
     }
 
-    const currentMob = dungeon?.mob || FOREST_MOBS[0];
-
     let enemySize = 120;
     let enemyX = 520;
     let enemyY = 130;
 
-    if (currentMob.name.includes("Ma Vương Chó Săn Hỗn Độn")) {
-        enemySize = 180; 
-        enemyX = 480;    
-        enemyY = 90;     
+    // 🌟 Phóng to Ma Vương gấp đôi (360x360), đẩy toạ độ lên trên và sang trái để giữ nguyên vị trí chân không bị tràn
+    if (isBoss) {
+        enemySize = 360; 
+        enemyX = 390;    
+        enemyY = -20;     
     }
 
     if (!dungeon?.isHellBurnAnim && currentMob && fs.existsSync(currentMob.image)) {
@@ -295,11 +303,11 @@ async function generateDungeonImage(player, dungeon) {
     if (dungeon?.isHellBurnAnim && fs.existsSync(HELL_BURN_EFFECT_PATH)) {
         try {
             const burnAnimImg = await loadImage(HELL_BURN_EFFECT_PATH);
-            ctx.drawImage(burnAnimImg, enemyX - 35, enemyY - 40, enemySize * 1.5, enemySize * 1.5);
+            ctx.drawImage(burnAnimImg, enemyX + (isBoss ? 40 : -35), enemyY + (isBoss ? 40 : -40), enemySize * 0.8, enemySize * 0.8);
         } catch (e) {}
     } else {
         const effectX = enemyX + (enemySize / 2) - 45;
-        const effectY = enemyY - 35;
+        const effectY = enemyY + (isBoss ? 50 : -35);
         if (dungeon?.isCrit && fs.existsSync(CRIT_EFFECT_PATH)) {
             try {
                 const critImg = await loadImage(CRIT_EFFECT_PATH);
@@ -416,7 +424,6 @@ async function generateDungeonImage(player, dungeon) {
     return canvas.toBuffer('image/png');
 }
 
-// 🌟 Dùng sự kiện ClientReady sạch log v14
 client.once(Events.ClientReady, (c) => {
     console.log(`✅ Bot đã đăng nhập thành công: ${c.user.tag}`);
 });
@@ -999,10 +1006,11 @@ client.on('interactionCreate', async interaction => {
         const imageBufferAnim = await generateDungeonImage(player, dungeon);
         const attachmentAnim = new AttachmentBuilder(imageBufferAnim, { name: 'dungeon.png' });
 
+        const isBoss = currentMob.name.includes("Ma Vương Chó Săn Hỗn Độn");
         const updateDungeonEmbed = new EmbedBuilder()
-            .setTitle(`🔥 ĐẠI CHIẾN: ${CHEAT_BOSS_MOB.name}`)
+            .setTitle(isBoss ? `🔥 ĐẠI CHIẾN: ${CHEAT_BOSS_MOB.name}` : `🌲 DUNGEON: KHU RỪNG SƯƠNG MÙ`)
             .setDescription(`${combatLog}\n**${player.name}** [HP: ${dungeon.playerHp}/${dungeon.maxPlayerHp}] VS **${currentMob.name}** [HP: ${dungeon.enemyHp}/${currentMob.maxHp}]`)
-            .setColor(0x9B59B6)
+            .setColor(isBoss ? 0x9B59B6 : 0x2ECC71)
             .setImage('attachment://dungeon.png');
 
         const skillComponents = [
