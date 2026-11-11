@@ -1,3 +1,11 @@
+process.on('unhandledRejection', error => {
+    console.error('❌ Lỗi chưa được bắt (Unhandled promise rejection):', error);
+});
+
+process.on('uncaughtException', error => {
+    console.error('💥 Lỗi nghiêm trọng (Uncaught exception):', error);
+});
+
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, AttachmentBuilder, Events } = require('discord.js');
 const { createCanvas, loadImage } = require('canvas');
 const { MongoClient } = require('mongodb');
