@@ -139,10 +139,10 @@ function spawnRandomMob() {
     return FOREST_MOBS[0];
 }
 
-// 🌟 Hàm lấy đường dẫn Map: Nếu là Ma Vương thì bắt buộc dùng map2, còn lại dùng map thường
+// 🌟 Trỏ thẳng vào thư mục assets để nhận diện map2.png / map2.jpg
 function getMapPath(isBoss = false) {
-    const map2Png = path.join(__dirname, 'map2.png');
-    const map2Jpg = path.join(__dirname, 'map2.jpg');
+    const map2Png = path.join(__dirname, 'assets', 'map2.png');
+    const map2Jpg = path.join(__dirname, 'assets', 'map2.jpg');
     const pngPath = path.join(__dirname, 'map.png');
     const jpgPath = path.join(__dirname, 'map.jpg');
 
