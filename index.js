@@ -1064,4 +1064,8 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN).then(() => {
+    console.log(`✅ [LOGIN SUCCESS] Bot đã đăng nhập thành công: ${client.user.tag}`);
+}).catch(err => {
+    console.error('❌ [LOGIN FAILED] Đăng nhập thất bại do lỗi sau:', err);
+});
