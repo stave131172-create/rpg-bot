@@ -139,20 +139,31 @@ function spawnRandomMob() {
     return FOREST_MOBS[0];
 }
 
-// 🌟 Trỏ thẳng vào thư mục assets để nhận diện map2.png / map2.jpg
+// 🌟 Hàm quét tìm map2 chính xác tuyệt đối trong thư mục assets
 function getMapPath(isBoss = false) {
-    const map2Png = path.join(__dirname, 'assets', 'map2.png');
-    const map2Jpg = path.join(__dirname, 'assets', 'map2.jpg');
-    const pngPath = path.join(__dirname, 'map.png');
-    const jpgPath = path.join(__dirname, 'map.jpg');
+    const assetsDir = path.join(__dirname, 'assets');
+    const map2Png = path.join(assetsDir, 'map2.png');
+    const map2Jpg = path.join(assetsDir, 'map2.jpg');
+    const mapPng = path.join(assetsDir, 'map.png');
+    const mapJpg = path.join(assetsDir, 'map.jpg');
+    
+    const rootMap2Png = path.join(__dirname, 'map2.png');
+    const rootMap2Jpg = path.join(__dirname, 'map2.jpg');
+    const rootMapPng = path.join(__dirname, 'map.png');
+    const rootMapJpg = path.join(__dirname, 'map.jpg');
 
     if (isBoss) {
         if (fs.existsSync(map2Png)) return map2Png;
         if (fs.existsSync(map2Jpg)) return map2Jpg;
+        if (fs.existsSync(rootMap2Png)) return rootMap2Png;
+        if (fs.existsSync(rootMap2Jpg)) return rootMap2Jpg;
     }
 
-    if (fs.existsSync(pngPath)) return pngPath;
-    if (fs.existsSync(jpgPath)) return jpgPath;
+    if (fs.existsSync(mapPng)) return mapPng;
+    if (fs.existsSync(mapJpg)) return mapJpg;
+    if (fs.existsSync(rootMapPng)) return rootMapPng;
+    if (fs.existsSync(rootMapJpg)) return rootMapJpg;
+    
     if (fs.existsSync(map2Png)) return map2Png;
     if (fs.existsSync(map2Jpg)) return map2Jpg;
     return null;
