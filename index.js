@@ -151,7 +151,6 @@ function getMapPath(isBoss = false) {
     const targetName = isBoss ? 'map2.png' : 'map.png';
     const fallbackName = isBoss ? 'map2.jpg' : 'map.jpg';
     
-    // Hàm đệ quy quét tìm file trong mọi thư mục con
     function findFile(dir, filename1, filename2) {
         try {
             if (!fs.existsSync(dir)) return null;
@@ -160,7 +159,6 @@ function getMapPath(isBoss = false) {
             for (const entry of entries) {
                 const fullPath = path.join(dir, entry.name);
                 if (entry.isDirectory()) {
-                    // Tránh quét các thư mục hệ thống nặng
                     if (entry.name !== 'node_modules' && entry.name !== '.git') {
                         const found = findFile(fullPath, filename1, filename2);
                         if (found) return found;
@@ -176,10 +174,8 @@ function getMapPath(isBoss = false) {
         return null;
     }
 
-    // Quét toàn bộ project từ thư mục gốc (__dirname) đi xuống
     const foundPath = findFile(__dirname, targetName, fallbackName);
     if (foundPath) {
-        console.log(`🗺️ Đã tìm thấy bản đồ tại: ${foundPath}`);
         return foundPath;
     }
 
@@ -189,7 +185,8 @@ function getMapPath(isBoss = false) {
 const PLAYER_IMAGE_PATH = path.join(__dirname, 'player.png');
 const START_BOX_IMAGE_PATH = path.join(__dirname, 'start_box.png');
 const HUD_IMAGE_PATH = path.join(__dirname, 'hud.png');
-const ENEMY_HUD_IMAGE_PATH = path.join(__dirname, 'enemy_hud.png'); 
+// Đã sửa chữ E hoa cho khớp chính xác với tên file trên GitHub
+const ENEMY_HUD_IMAGE_PATH = path.join(__dirname, 'Enemy_hud.png'); 
 const CRIT_EFFECT_PATH = path.join(__dirname, 'assets', 'crit_effect.png');
 const MISS_EFFECT_PATH = path.join(__dirname, 'assets', 'miss_effect.png');
 const BLOCK_EFFECT_PATH = path.join(__dirname, 'assets', 'block_effect.png');
@@ -283,15 +280,19 @@ async function generateDungeonImage(player, dungeon) {
     const ctx = canvas.getContext('2d');
 
     const currentMob = dungeon?.mob || FOREST_MOBS[0];
-    const isBoss = currentMob.name.includes("Ma Vương Chó Săn Hỗn Độn");
+    // 🌟 Nhận diện Boss chuẩn xác bằng tên, cấp độ hoặc tham chiếu trực tiếp
+    const isBoss = currentMob.name.includes("Ma Vương") || currentMob.name.includes("Chó Săn") || currentMob.level >= 15 || currentMob === CHEAT_BOSS_MOB;
 
     // 🌟 Dùng map2 riêng cho Ma Vương, map thường cho dungeon khác
     const mapPath = getMapPath(isBoss);
+    console.log(`🗺️ [DEBUG MAP] Đang dùng map cho Boss (${isBoss}):`, mapPath);
+
     if (mapPath) {
         try {
             const bgImage = await loadImage(mapPath);
             ctx.drawImage(bgImage, 0, 0, width, height);
         } catch (e) {
+            console.error("❌ Lỗi load ảnh nền:", e);
             ctx.fillStyle = "#2c3e50";
             ctx.fillRect(0, 0, width, height);
         }
@@ -304,7 +305,7 @@ async function generateDungeonImage(player, dungeon) {
     let enemyX = 520;
     let enemyY = 130;
 
-    // 🌟 Phóng to Ma Vương gấp đôi (360x360), đẩy toạ độ lên trên và sang trái để giữ nguyên vị trí chân không bị tràn
+    // 🌟 Phóng to Ma Vương (360x360), đẩy toạ độ lên trên và sang trái để giữ nguyên vị trí chân
     if (isBoss) {
         enemySize = 360; 
         enemyX = 390;    
@@ -1034,7 +1035,7 @@ client.on('interactionCreate', async interaction => {
         const imageBufferAnim = await generateDungeonImage(player, dungeon);
         const attachmentAnim = new AttachmentBuilder(imageBufferAnim, { name: 'dungeon.png' });
 
-        const isBoss = currentMob.name.includes("Ma Vương Chó Săn Hỗn Độn");
+        const isBoss = currentMob.name.includes("Ma Vương") || currentMob.name.includes("Chó Săn") || currentMob.level >= 15 || currentMob === CHEAT_BOSS_MOB;
         const updateDungeonEmbed = new EmbedBuilder()
             .setTitle(isBoss ? `🔥 ĐẠI CHIẾN: ${CHEAT_BOSS_MOB.name}` : `🌲 DUNGEON: KHU RỪNG SƯƠNG MÙ`)
             .setDescription(`${combatLog}\n**${player.name}** [HP: ${dungeon.playerHp}/${dungeon.maxPlayerHp}] VS **${currentMob.name}** [HP: ${dungeon.enemyHp}/${currentMob.maxHp}]`)
