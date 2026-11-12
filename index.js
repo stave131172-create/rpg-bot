@@ -147,36 +147,32 @@ function spawnRandomMob() {
     return FOREST_MOBS[0];
 }
 
-// 🌟 Hàm quét map2 tự động nhận diện mọi định dạng ẩn/hiện đuôi
+// 🌟 Hàm quét và in danh sách file trong assets ra console để kiểm tra
 function getMapPath(isBoss = false) {
     const assetsDir = path.join(__dirname, 'assets');
     
-    // Danh sách các tên file map2 có thể có
-    const possibleMap2Files = [
-        path.join(assetsDir, 'map2.png'),
-        path.join(assetsDir, 'map2.jpg'),
-        path.join(assetsDir, 'map2') // Trường hợp Windows ẩn đuôi hoàn toàn
-    ];
+    // In ra danh sách toàn bộ file thực tế đang có trong thư mục assets để soi
+    if (fs.existsSync(assetsDir)) {
+        const files = fs.readdirSync(assetsDir);
+        console.log("📂 Danh sách file thực tế trong thư mục assets:", files);
+    } else {
+        console.log("❌ Không tìm thấy thư mục assets tại đường dẫn:", assetsDir);
+    }
 
-    const mapPng = path.join(assetsDir, 'map.png');
-    const mapJpg = path.join(assetsDir, 'map.jpg');
+    // Các đường dẫn thử nghiệm
+    const targetMap2Png = path.join(assetsDir, 'map2.png');
+    const targetMap2Jpg = path.join(assetsDir, 'map2.jpg');
+    const targetMap2 = path.join(assetsDir, 'map2');
 
     if (isBoss) {
-        for (const filePath of possibleMap2Files) {
-            if (fs.existsSync(filePath)) {
-                return filePath; // Trả về đường dẫn hợp lệ đầu tiên tìm thấy
-            }
-        }
+        if (fs.existsSync(targetMap2Png)) return targetMap2Png;
+        if (fs.existsSync(targetMap2Jpg)) return targetMap2Jpg;
+        if (fs.existsSync(targetMap2)) return targetMap2;
     }
 
-    if (fs.existsSync(mapPng)) return mapPng;
-    if (fs.existsSync(mapJpg)) return mapJpg;
-    
-    // Fallback dự phòng nếu tìm map thường không thấy
-    for (const filePath of possibleMap2Files) {
-        if (fs.existsSync(filePath)) return filePath;
-    }
-    
+    const defaultMapPng = path.join(assetsDir, 'map.png');
+    if (fs.existsSync(defaultMapPng)) return defaultMapPng;
+
     return null;
 }
 
