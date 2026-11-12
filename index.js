@@ -147,33 +147,36 @@ function spawnRandomMob() {
     return FOREST_MOBS[0];
 }
 
-// 🌟 Hàm quét tìm map2 chính xác tuyệt đối trong thư mục assets
+// 🌟 Hàm quét map2 tự động nhận diện mọi định dạng ẩn/hiện đuôi
 function getMapPath(isBoss = false) {
     const assetsDir = path.join(__dirname, 'assets');
-    const map2Png = path.join(assetsDir, 'map2.png');
-    const map2Jpg = path.join(assetsDir, 'map2.jpg');
+    
+    // Danh sách các tên file map2 có thể có
+    const possibleMap2Files = [
+        path.join(assetsDir, 'map2.png'),
+        path.join(assetsDir, 'map2.jpg'),
+        path.join(assetsDir, 'map2') // Trường hợp Windows ẩn đuôi hoàn toàn
+    ];
+
     const mapPng = path.join(assetsDir, 'map.png');
     const mapJpg = path.join(assetsDir, 'map.jpg');
-    
-    const rootMap2Png = path.join(__dirname, 'map2.png');
-    const rootMap2Jpg = path.join(__dirname, 'map2.jpg');
-    const rootMapPng = path.join(__dirname, 'map.png');
-    const rootMapJpg = path.join(__dirname, 'map.jpg');
 
     if (isBoss) {
-        if (fs.existsSync(map2Png)) return map2Png;
-        if (fs.existsSync(map2Jpg)) return map2Jpg;
-        if (fs.existsSync(rootMap2Png)) return rootMap2Png;
-        if (fs.existsSync(rootMap2Jpg)) return rootMap2Jpg;
+        for (const filePath of possibleMap2Files) {
+            if (fs.existsSync(filePath)) {
+                return filePath; // Trả về đường dẫn hợp lệ đầu tiên tìm thấy
+            }
+        }
     }
 
     if (fs.existsSync(mapPng)) return mapPng;
     if (fs.existsSync(mapJpg)) return mapJpg;
-    if (fs.existsSync(rootMapPng)) return rootMapPng;
-    if (fs.existsSync(rootMapJpg)) return rootMapJpg;
     
-    if (fs.existsSync(map2Png)) return map2Png;
-    if (fs.existsSync(map2Jpg)) return map2Jpg;
+    // Fallback dự phòng nếu tìm map thường không thấy
+    for (const filePath of possibleMap2Files) {
+        if (fs.existsSync(filePath)) return filePath;
+    }
+    
     return null;
 }
 
