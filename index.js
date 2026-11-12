@@ -185,7 +185,7 @@ function getMapPath(isBoss = false) {
 const PLAYER_IMAGE_PATH = path.join(__dirname, 'player.png');
 const START_BOX_IMAGE_PATH = path.join(__dirname, 'start_box.png');
 const HUD_IMAGE_PATH = path.join(__dirname, 'hud.png');
-// Đã sửa chữ E hoa cho khớp chính xác với tên file trên GitHub
+// 🌟 Sửa chính xác thành Enemy_hud.png (chữ E hoa chuẩn GitHub) để khung máu quái không bị mất
 const ENEMY_HUD_IMAGE_PATH = path.join(__dirname, 'Enemy_hud.png'); 
 const CRIT_EFFECT_PATH = path.join(__dirname, 'assets', 'crit_effect.png');
 const MISS_EFFECT_PATH = path.join(__dirname, 'assets', 'miss_effect.png');
@@ -280,19 +280,16 @@ async function generateDungeonImage(player, dungeon) {
     const ctx = canvas.getContext('2d');
 
     const currentMob = dungeon?.mob || FOREST_MOBS[0];
-    // 🌟 Nhận diện Boss chuẩn xác bằng tên, cấp độ hoặc tham chiếu trực tiếp
     const isBoss = currentMob.name.includes("Ma Vương") || currentMob.name.includes("Chó Săn") || currentMob.level >= 15 || currentMob === CHEAT_BOSS_MOB;
 
-    // 🌟 Dùng map2 riêng cho Ma Vương, map thường cho dungeon khác
+    // 🌟 Load map 2 cho Boss, map thường cho dungeon khác
     const mapPath = getMapPath(isBoss);
-    console.log(`🗺️ [DEBUG MAP] Đang dùng map cho Boss (${isBoss}):`, mapPath);
 
     if (mapPath) {
         try {
             const bgImage = await loadImage(mapPath);
             ctx.drawImage(bgImage, 0, 0, width, height);
         } catch (e) {
-            console.error("❌ Lỗi load ảnh nền:", e);
             ctx.fillStyle = "#2c3e50";
             ctx.fillRect(0, 0, width, height);
         }
@@ -305,7 +302,6 @@ async function generateDungeonImage(player, dungeon) {
     let enemyX = 520;
     let enemyY = 130;
 
-    // 🌟 Phóng to Ma Vương (360x360), đẩy toạ độ lên trên và sang trái để giữ nguyên vị trí chân
     if (isBoss) {
         enemySize = 360; 
         enemyX = 390;    
@@ -372,11 +368,13 @@ async function generateDungeonImage(player, dungeon) {
     const enemyHpBarMaxW = 300;
     const enemyHpBarH = 15;
 
+    // 1. Vẽ thanh máu quái trước
     if (eHpRatio > 0) {
         ctx.fillStyle = eColor;
         ctx.fillRect(enemyHpBarStartX, enemyHpBarStartY, enemyHpBarMaxW * eHpRatio, enemyHpBarH);
     }
 
+    // 2. Vẽ khung HUD quái đè lên thanh máu
     if (fs.existsSync(ENEMY_HUD_IMAGE_PATH)) {
         try {
             const enemyHudImg = await loadImage(ENEMY_HUD_IMAGE_PATH);
@@ -384,6 +382,7 @@ async function generateDungeonImage(player, dungeon) {
         } catch (e) {}
     }
 
+    // 3. Vẽ chữ tên quái, level và máu lên trên cùng
     drawOutlinedText(ctx, `${currentMob.name}`, eHudX + 80, eHudY + 30, "bold 15px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `Lv.`, eHudX + 285, eHudY + 30, "bold 15px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `${currentMob.level}`, eHudX + 312, eHudY + 30, "bold 15px sans-serif", "#f1c40f");
