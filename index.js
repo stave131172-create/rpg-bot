@@ -107,7 +107,6 @@ const FOREST_MOBS = [
     }
 ];
 
-// 🌟 Boss Ma Vương Chó Săn Hỗn Độn Lv.17
 const CHEAT_BOSS_MOB = {
     name: "Ma Vương Chó Săn Hỗn Độn",
     hp: 180,
@@ -147,51 +146,49 @@ function spawnRandomMob() {
     return FOREST_MOBS[0];
 }
 
-function getMapPath(isBoss = false) {
-    const targetName = isBoss ? 'map2.png' : 'map.png';
-    const fallbackName = isBoss ? 'map2.jpg' : 'map.jpg';
-    
-    function findFile(dir, filename1, filename2) {
+// 🌟 Hàm quét tìm file linh hoạt bất kể nằm ở thư mục gốc hay assets
+function findAssetPath(filename) {
+    const directPath = path.join(__dirname, filename);
+    if (fs.existsSync(directPath)) return directPath;
+
+    const assetsPath = path.join(__dirname, 'assets', filename);
+    if (fs.existsSync(assetsPath)) return assetsPath;
+
+    // Quét toàn cục nếu không thấy
+    function searchDir(dir) {
         try {
-            if (!fs.existsSync(dir)) return null;
             const entries = fs.readdirSync(dir, { withFileTypes: true });
-            
             for (const entry of entries) {
                 const fullPath = path.join(dir, entry.name);
-                if (entry.isDirectory()) {
-                    if (entry.name !== 'node_modules' && entry.name !== '.git') {
-                        const found = findFile(fullPath, filename1, filename2);
-                        if (found) return found;
-                    }
-                } else if (entry.isFile()) {
-                    const lowerName = entry.name.toLowerCase();
-                    if (lowerName === filename1.toLowerCase() || lowerName === filename2.toLowerCase() || (isBoss && lowerName.includes('map2'))) {
-                        return fullPath;
-                    }
+                if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
+                    const found = searchDir(fullPath);
+                    if (found) return found;
+                } else if (entry.isFile() && entry.name.toLowerCase() === filename.toLowerCase()) {
+                    return fullPath;
                 }
             }
         } catch (e) {}
         return null;
     }
-
-    const foundPath = findFile(__dirname, targetName, fallbackName);
-    if (foundPath) {
-        return foundPath;
-    }
-
-    return null;
+    return searchDir(__dirname);
 }
 
-const PLAYER_IMAGE_PATH = path.join(__dirname, 'player.png');
-const START_BOX_IMAGE_PATH = path.join(__dirname, 'start_box.png');
-const HUD_IMAGE_PATH = path.join(__dirname, 'hud.png');
-// 🌟 Sửa chính xác thành Enemy_hud.png (chữ E hoa chuẩn GitHub) để khung máu quái không bị mất
-const ENEMY_HUD_IMAGE_PATH = path.join(__dirname, 'Enemy_hud.png'); 
-const CRIT_EFFECT_PATH = path.join(__dirname, 'assets', 'crit_effect.png');
-const MISS_EFFECT_PATH = path.join(__dirname, 'assets', 'miss_effect.png');
-const BLOCK_EFFECT_PATH = path.join(__dirname, 'assets', 'block_effect.png');
-const HELL_BURN_EFFECT_PATH = path.join(__dirname, 'assets', 'hell_burn_effect.png');
-const BURN_ICON_PATH = path.join(__dirname, 'assets', 'burn_icon.png');
+function getMapPath(isBoss = false) {
+    const targetName = isBoss ? 'map2.png' : 'map.png';
+    const found = findAssetPath(targetName);
+    if (found) return found;
+    // Fallback jpg
+    return findAssetPath(isBoss ? 'map2.jpg' : 'map.jpg');
+}
+
+const PLAYER_IMAGE_PATH = findAssetPath('player.png');
+const START_BOX_IMAGE_PATH = findAssetPath('start_box.png');
+const HUD_IMAGE_PATH = findAssetPath('hud.png');
+const ENEMY_HUD_IMAGE_PATH = findAssetPath('Enemy_hud.png'); // Tự động tìm cả Enemy_hud.png lẫn enemy_hud.png
+const CRIT_EFFECT_PATH = findAssetPath('crit_effect.png') || path.join(__dirname, 'assets', 'crit_effect.png');
+const MISS_EFFECT_PATH = findAssetPath('miss_effect.png') || path.join(__dirname, 'assets', 'miss_effect.png');
+const BLOCK_EFFECT_PATH = findAssetPath('block_effect.png') || path.join(__dirname, 'assets', 'block_effect.png');
+const HELL_BURN_EFFECT_PATH = findAssetPath('hell_burn_effect.png') || path.join(__dirname, 'assets', 'hell_burn_effect.png');
 
 const RACES = [
     {
@@ -282,10 +279,9 @@ async function generateDungeonImage(player, dungeon) {
     const currentMob = dungeon?.mob || FOREST_MOBS[0];
     const isBoss = currentMob.name.includes("Ma Vương") || currentMob.name.includes("Chó Săn") || currentMob.level >= 15 || currentMob === CHEAT_BOSS_MOB;
 
-    // 🌟 Load map 2 cho Boss, map thường cho dungeon khác
+    // 1. Vẽ Map (Map 2 cho boss, Map thường cho quái thường)
     const mapPath = getMapPath(isBoss);
-
-    if (mapPath) {
+    if (mapPath && fs.existsSync(mapPath)) {
         try {
             const bgImage = await loadImage(mapPath);
             ctx.drawImage(bgImage, 0, 0, width, height);
@@ -318,14 +314,14 @@ async function generateDungeonImage(player, dungeon) {
     const playerX = 90;
     const playerY = 100;
     const playerSize = 340;
-    if (fs.existsSync(PLAYER_IMAGE_PATH)) {
+    if (PLAYER_IMAGE_PATH && fs.existsSync(PLAYER_IMAGE_PATH)) {
         try {
             const playerImg = await loadImage(PLAYER_IMAGE_PATH);
             ctx.drawImage(playerImg, playerX, playerY, playerSize, playerSize);
         } catch (e) {}
     }
 
-    if (dungeon?.isHellBurnAnim && fs.existsSync(HELL_BURN_EFFECT_PATH)) {
+    if (dungeon?.isHellBurnAnim && HELL_BURN_EFFECT_PATH && fs.existsSync(HELL_BURN_EFFECT_PATH)) {
         try {
             const burnAnimImg = await loadImage(HELL_BURN_EFFECT_PATH);
             ctx.drawImage(burnAnimImg, enemyX + (isBoss ? 40 : -35), enemyY + (isBoss ? 40 : -40), enemySize * 0.8, enemySize * 0.8);
@@ -333,17 +329,17 @@ async function generateDungeonImage(player, dungeon) {
     } else {
         const effectX = enemyX + (enemySize / 2) - 45;
         const effectY = enemyY + (isBoss ? 50 : -35);
-        if (dungeon?.isCrit && fs.existsSync(CRIT_EFFECT_PATH)) {
+        if (dungeon?.isCrit && CRIT_EFFECT_PATH && fs.existsSync(CRIT_EFFECT_PATH)) {
             try {
                 const critImg = await loadImage(CRIT_EFFECT_PATH);
                 ctx.drawImage(critImg, effectX, effectY, 90, 40);
             } catch (e) {}
-        } else if (dungeon?.isMiss && fs.existsSync(MISS_EFFECT_PATH)) {
+        } else if (dungeon?.isMiss && MISS_EFFECT_PATH && fs.existsSync(MISS_EFFECT_PATH)) {
             try {
                 const missImg = await loadImage(MISS_EFFECT_PATH);
                 ctx.drawImage(missImg, effectX, effectY, 90, 40);
             } catch (e) {}
-        } else if (dungeon?.isBlock && fs.existsSync(BLOCK_EFFECT_PATH)) {
+        } else if (dungeon?.isBlock && BLOCK_EFFECT_PATH && fs.existsSync(BLOCK_EFFECT_PATH)) {
             try {
                 const blockImg = await loadImage(BLOCK_EFFECT_PATH);
                 ctx.drawImage(blockImg, effectX, effectY, 90, 40);
@@ -351,6 +347,7 @@ async function generateDungeonImage(player, dungeon) {
         }
     }
 
+    // --- HUD QUÁI (ENEMY HUD) ---
     const eHudX = 30;
     const eHudY = 25;
     const eHudW = 410;
@@ -368,26 +365,31 @@ async function generateDungeonImage(player, dungeon) {
     const enemyHpBarMaxW = 300;
     const enemyHpBarH = 15;
 
-    // 1. Vẽ thanh máu quái trước
+    // 1. Vẽ thanh máu quái
     if (eHpRatio > 0) {
         ctx.fillStyle = eColor;
         ctx.fillRect(enemyHpBarStartX, enemyHpBarStartY, enemyHpBarMaxW * eHpRatio, enemyHpBarH);
     }
 
     // 2. Vẽ khung HUD quái đè lên thanh máu
-    if (fs.existsSync(ENEMY_HUD_IMAGE_PATH)) {
+    if (ENEMY_HUD_IMAGE_PATH && fs.existsSync(ENEMY_HUD_IMAGE_PATH)) {
         try {
             const enemyHudImg = await loadImage(ENEMY_HUD_IMAGE_PATH);
             ctx.drawImage(enemyHudImg, eHudX, eHudY, eHudW, eHudH);
-        } catch (e) {}
+        } catch (e) {
+            console.error("❌ Lỗi vẽ Enemy HUD:", e);
+        }
+    } else {
+        console.warn("⚠️ Không tìm thấy file Enemy_hud.png để vẽ!");
     }
 
-    // 3. Vẽ chữ tên quái, level và máu lên trên cùng
+    // 3. Vẽ chữ tên quái, level, máu
     drawOutlinedText(ctx, `${currentMob.name}`, eHudX + 80, eHudY + 30, "bold 15px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `Lv.`, eHudX + 285, eHudY + 30, "bold 15px sans-serif", "#ffffff");
     drawOutlinedText(ctx, `${currentMob.level}`, eHudX + 312, eHudY + 30, "bold 15px sans-serif", "#f1c40f");
     drawOutlinedText(ctx, `${enemyHp}/${maxEnemyHp}`, eHudX + 300, eHudY + 48, "bold 12px sans-serif", "#ffffff");
 
+    // --- HUD PLAYER ---
     const pHudX = 450;
     const pHudY = 310;
     const pHudW = 410;
@@ -436,7 +438,7 @@ async function generateDungeonImage(player, dungeon) {
         ctx.fillRect(xpBarStartX, xpBarStartY, xpBarMaxW * xpRatio, xpBarH);
     }
 
-    if (fs.existsSync(HUD_IMAGE_PATH)) {
+    if (HUD_IMAGE_PATH && fs.existsSync(HUD_IMAGE_PATH)) {
         try {
             const hudImg = await loadImage(HUD_IMAGE_PATH);
             ctx.drawImage(hudImg, pHudX, pHudY, pHudW, pHudH);
@@ -554,7 +556,7 @@ client.on('messageCreate', async message => {
             .setColor(0xFFA500);
 
         let filesArr = [];
-        if (fs.existsSync(START_BOX_IMAGE_PATH)) {
+        if (START_BOX_IMAGE_PATH && fs.existsSync(START_BOX_IMAGE_PATH)) {
             const attachment = new AttachmentBuilder(START_BOX_IMAGE_PATH, { name: 'start_box.png' });
             embed.setImage('attachment://start_box.png');
             filesArr.push(attachment);
@@ -677,7 +679,7 @@ client.on('interactionCreate', async interaction => {
             .setColor(0xFFA500);
 
         let filesArr = [];
-        if (fs.existsSync(START_BOX_IMAGE_PATH)) {
+        if (START_BOX_IMAGE_PATH && fs.existsSync(START_BOX_IMAGE_PATH)) {
             const attachment = new AttachmentBuilder(START_BOX_IMAGE_PATH, { name: 'start_box.png' });
             embed.setImage('attachment://start_box.png');
             filesArr.push(attachment);
