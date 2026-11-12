@@ -148,28 +148,42 @@ function spawnRandomMob() {
 }
 
 function getMapPath(isBoss = false) {
-    const assetsDir = path.join(__dirname, 'assets');
+    const targetName = isBoss ? 'map2.png' : 'map.png';
+    const fallbackName = isBoss ? 'map2.jpg' : 'map.jpg';
     
-    if (fs.existsSync(assetsDir)) {
-        const files = fs.readdirSync(assetsDir);
-        
-        // Nếu là đánh Boss, ưu tiên tìm file chứa chữ "map2" bất kể đuôi file
-        if (isBoss) {
-            const foundMap2 = files.find(file => file.toLowerCase().includes('map2'));
-            if (foundMap2) {
-                return path.join(assetsDir, foundMap2);
+    // Hàm đệ quy quét tìm file trong mọi thư mục con
+    function findFile(dir, filename1, filename2) {
+        try {
+            if (!fs.existsSync(dir)) return null;
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            
+            for (const entry of entries) {
+                const fullPath = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    // Tránh quét các thư mục hệ thống nặng
+                    if (entry.name !== 'node_modules' && entry.name !== '.git') {
+                        const found = findFile(fullPath, filename1, filename2);
+                        if (found) return found;
+                    }
+                } else if (entry.isFile()) {
+                    const lowerName = entry.name.toLowerCase();
+                    if (lowerName === filename1.toLowerCase() || lowerName === filename2.toLowerCase() || (isBoss && lowerName.includes('map2'))) {
+                        return fullPath;
+                    }
+                }
             }
-        }
-        
-        // Nếu là map thường, tìm file chứa chữ "map" (nhưng không phải map2)
-        const foundMapNormal = files.find(file => file.toLowerCase().startsWith('map.') || file.toLowerCase() === 'map.png' || file.toLowerCase() === 'map.jpg');
-        if (foundMapNormal) {
-            return path.join(assetsDir, foundMapNormal);
-        }
+        } catch (e) {}
+        return null;
     }
-    
-    // Fallback dự phòng cuối cùng nếu quét folder lỗi
-    return path.join(assetsDir, isBoss ? 'map2.png' : 'map.png');
+
+    // Quét toàn bộ project từ thư mục gốc (__dirname) đi xuống
+    const foundPath = findFile(__dirname, targetName, fallbackName);
+    if (foundPath) {
+        console.log(`🗺️ Đã tìm thấy bản đồ tại: ${foundPath}`);
+        return foundPath;
+    }
+
+    return null;
 }
 
 const PLAYER_IMAGE_PATH = path.join(__dirname, 'player.png');
